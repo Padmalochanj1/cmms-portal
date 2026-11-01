@@ -20,9 +20,30 @@ function draw(){if(!M)return;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button da
 $("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};
 $("#refresh").onclick=()=>load().then(()=>toast("Refreshed.")).catch(e=>toast(e.message,1));
 
-V.dashboard=()=>{const os=L.orders(M,TD),c=k=>os.filter(o=>st(o)===k).length,days=[...Array(7)].map((_,i)=>[L.iso(TD+i).slice(5),L.orders(M,TD+i).length]);
- $("#view").innerHTML=`<div class="sum"><div><b>${os.length}</b>due today</div><div><b>${c("CLOSED")}</b>closed</div><div><b>${c("DEFERRED")}</b>deferred</div><div><b>${os.length-c("CLOSED")-c("DEFERRED")}</b>open</div><div><b>${days[1][1]}</b>due tomorrow</div></div>
- <div class="two"><div><h3>Orders due, next 7 days</h3>${bars(days)}</div><div><h3>Today by criticality</h3>${bars(["High","Medium","Low"].map(k=>[k,os.filter(o=>o.e.crit===k).length]))}</div></div>`};
+const COL={blue:"#2f7fd1",green:"#2e9e6b",amber:"#e09a1a",red:"#d9473f",violet:"#7a5bd0",teal:"#1aa3b5",slate:"#6b7c8a"};
+const CC={High:COL.red,Medium:COL.amber,Low:COL.green};
+const by=(a,f)=>{const m={};a.forEach(x=>{const k=f(x)||"Not set";m[k]=(m[k]||0)+1});return Object.entries(m).sort((x,y)=>y[1]-x[1])};
+const hb=(l,c)=>{const m=Math.max(1,...l.map(x=>x[1]));return l.map(([a,n],i)=>`<div class="bar2"><span title="${esc(a)}">${esc(a)}</span><i style="width:${n/m*100}%;background:${typeof c==="function"?c(a,i):c}"></i><em>${n}</em></div>`).join("")||`<p class="empty">No orders.</p>`};
+const donut=(parts,mid)=>{const tot=parts.reduce((a,p)=>a+p[1],0)||1;let off=0;return`<svg viewBox="0 0 120 120" class="donut"><circle cx="60" cy="60" r="46" fill="none" stroke="var(--line)" stroke-width="16"/>${parts.map(([n,v,c])=>{const len=v/tot*289;const e=`<circle cx="60" cy="60" r="46" fill="none" stroke="${c}" stroke-width="16" stroke-dasharray="${len} ${289-len}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=len;return e}).join("")}<text x="60" y="62" text-anchor="middle" class="dn">${mid}</text><text x="60" y="78" text-anchor="middle" class="dl">complete</text></svg>`};
+const card=(t,body,c)=>`<section class="dc" style="--c:${c||COL.teal}"><h3>${t}</h3>${body}</section>`;
+V.dashboard=()=>{const os=L.orders(M,TD),tm=L.orders(M,TD+1),n=k=>os.filter(o=>st(o)===k).length,closed=n("CLOSED"),def=n("DEFERRED"),ready=n("READY TO CLOSE"),open=os.length-closed-def,pct=os.length?Math.round((closed+def)/os.length*100):0;
+ const wk=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],days=[...Array(7)].map((_,i)=>[wk[new Date((TD+i)*864e5).getUTCDay()]+" "+L.iso(TD+i).slice(8),L.orders(M,TD+i).length,i===0]),mx=Math.max(1,...days.map(d=>d[1]));
+ const kp=(v,l,c,sub)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span>${sub?`<small>${sub}</small>`:""}</div>`;
+ const hr=new Date().getHours(),act=M.equipment.filter(e=>e.status!=="Inactive").length;
+ const hi=os.filter(o=>o.e.crit==="High"&&!cl[o.no]).slice(0,8),rec=Object.values(cl).sort((a,b)=>String(b.at).localeCompare(String(a.at))).slice(0,8);
+ $("#view").innerHTML=`<p class="greet">${hr<12?"Good morning":hr<17?"Good afternoon":"Good evening"}, ${esc(U)}. Here is the maintenance picture for ${L.iso(TD).split("-").reverse().join("/")}.</p>
+ <div class="kpis">${kp(os.length,"Due today",COL.blue,`${Object.keys(by(os,o=>o.e.loc)).length} locations`)}${kp(closed,"Closed",COL.green,pct+"% of today’s orders done")}${kp(def,"Deferred",COL.amber)}${kp(open,"Still open",COL.red,`${ready} ready to close`)}${kp(Object.keys(ms).length,"Checklists saved",COL.teal,"today")}${kp(tm.length,"Due tomorrow",COL.violet,`${tm.filter(o=>o.e.crit==="High").length} high priority`)}</div>
+ <div class="dgrid">
+ ${card("Completion today",`<div class="dflex">${donut([["Closed",closed,COL.green],["Deferred",def,COL.amber],["Open",open,COL.red]],pct+"%")}<ul class="leg"><li><i style="background:${COL.green}"></i>Closed <b>${closed}</b></li><li><i style="background:${COL.amber}"></i>Deferred <b>${def}</b></li><li><i style="background:${COL.red}"></i>Open <b>${open}</b></li></ul></div>`,COL.green)}
+ ${card("Orders due, next 7 days",`<div class="cols">${days.map(([d,v,t])=>`<div><em>${v}</em><i style="height:${Math.max(3,v/mx*130)}px;background:${t?COL.blue:COL.violet}"></i><span>${d}</span></div>`).join("")}</div>`,COL.violet)}
+ ${card("Today by criticality",["High","Medium","Low"].map(k=>{const t=os.filter(o=>o.e.crit===k),d=t.filter(o=>cl[o.no]).length;return`<div class="stk"><span>${k}</span><div style="--c:${CC[k]}"><i style="width:${t.length?d/t.length*100:0}%"></i></div><em>${d}/${t.length}</em></div>`}).join("")+`<p class="hint">Done / due, by criticality</p>`,COL.red)}
+ ${card("Today by frequency",hb(by(os,o=>o.freq),COL.blue),COL.blue)}
+ ${card("Today by location",hb(by(os,o=>o.e.loc).slice(0,7),COL.teal),COL.teal)}
+ ${card("Today by equipment type",hb(by(os,o=>o.e.type),(a,i)=>[COL.violet,COL.amber,COL.green,COL.blue,COL.red,COL.teal,COL.slate][i%7]),COL.amber)}
+ ${card("High priority, still open",hi.length?`<ul class="lst">${hi.map(o=>`<li><b class="mono">${o.no}</b> ${esc(o.e.name)} ${chip(st(o))}</li>`).join("")}</ul>`:`<p class="empty">No high priority orders are waiting.</p>`,COL.red)}
+ ${card("Recent closures today",rec.length?`<ul class="lst">${rec.map(c=>`<li><b class="mono">${esc(c.no)}</b> ${chip(c.action.toUpperCase())} <small>${esc(c.by)}, ${c.at?new Date(c.at).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):""}</small></li>`).join("")}</ul>`:`<p class="empty">Nothing closed yet today.</p>`,COL.green)}
+ ${card("Equipment register",`<div class="eq"><div><b>${M.equipment.length}</b><span>Total</span></div><div><b>${act}</b><span>Active</span></div><div><b>${M.equipment.length-act}</b><span>Inactive</span></div><div><b>${M.types.length}</b><span>Types</span></div><div><b>${Object.keys(M.areas).length}</b><span>Locations</span></div></div>`,COL.slate)}
+ </div>`};
 
 V.closing=()=>{const os=L.orders(M,TD);
  $("#view").innerHTML=`<div class="wrap"><table><thead><tr><th>Order no.</th><th>Equipment</th><th>Criticality</th><th>Status</th><th>Remarks</th><th></th></tr></thead><tbody>${os.map((o,i)=>{const s=st(o),done=!!cl[o.no];
