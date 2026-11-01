@@ -12,11 +12,14 @@ async function call(a,b){let j;try{const r=await fetch(C.url,{method:"POST",body
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
  $("#sub").textContent=`${U}${R==="admin"?" (admin)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
 const st=o=>cl[o.no]?cl[o.no].action.toUpperCase():ms[o.no]?"READY TO CLOSE":L.items(M,o).length?"OPEN":"NO CHECKLIST";
+const PH=t=>`<div class="phead"><b>Coal Washery E&amp;I Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(U)}</small></div>`;
+const PB=`<div class="bar noprint"><button class="ghost" data-print>Print</button></div>`;
+window.onbeforeprint=()=>document.querySelectorAll("details").forEach(d=>d.open=true);
 const chip=s=>`<span class="chip ${s.replace(/ /g,"_")}">${s}</span>`;
 const bars=l=>{const m=Math.max(1,...l.map(x=>x[1]));return l.map(([a,n])=>`<div class="bar2"><span>${a}</span><i style="width:${n/m*100}%"></i><em>${n}</em></div>`).join("")};
 const go=r=>{route=r;location.hash=r;draw()};
 function draw(){if(!M)return;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
- const v=$("#view");v.onclick=v.oninput=v.onchange=null;(V[route]||V.dashboard)()}
+ const v=$("#view");v.oninput=v.onchange=null;v.onclick=e=>{if(e.target.dataset.print!==undefined)window.print()};(V[route]||V.dashboard)()}
 $("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};
 $("#refresh").onclick=()=>load().then(()=>toast("Refreshed.")).catch(e=>toast(e.message,1));
 
@@ -46,10 +49,10 @@ V.dashboard=()=>{const os=L.orders(M,TD),tm=L.orders(M,TD+1),n=k=>os.filter(o=>s
  </div>`};
 
 V.closing=()=>{const os=L.orders(M,TD);
- $("#view").innerHTML=`<div class="wrap"><table><thead><tr><th>Order no.</th><th>Equipment</th><th>Criticality</th><th>Status</th><th>Remarks</th><th></th></tr></thead><tbody>${os.map((o,i)=>{const s=st(o),done=!!cl[o.no];
+ $("#view").innerHTML=PH("Order closing, "+L.iso(TD).split("-").reverse().join("/"))+PB+`<div class="wrap"><table><thead><tr><th>Order no.</th><th>Equipment</th><th>Criticality</th><th>Status</th><th>Remarks</th><th class="noprint"></th></tr></thead><tbody>${os.map((o,i)=>{const s=st(o),done=!!cl[o.no];
  return`<tr data-i="${i}"><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}, ${esc(o.e.type)}, ${esc(o.e.loc)}</small></td><td>${esc(o.e.crit)}</td><td>${chip(s)}</td><td><input data-r value="${esc(cl[o.no]?.rem||"")}"${done?" disabled":""}></td>
- <td>${done?"":`<button class="link" data-a="chk">Checklist</button> <button data-a="Closed"${s==="READY TO CLOSE"?"":" disabled"}>Close</button> <button class="ghost" data-a="Deferred">Defer</button>`}</td></tr>`}).join("")||`<tr><td colspan="6" class="empty">No orders are due today.</td></tr>`}</tbody></table></div>`;
- $("#view").onclick=async e=>{const a=e.target.dataset.a,tr=e.target.closest("tr");if(!a||!tr)return;const o=os[tr.dataset.i];if(a==="chk"){cur=o.no;go("checklist");return}
+ <td class="noprint">${done?"":`<button class="link" data-a="chk">Checklist</button> <button data-a="Closed"${s==="READY TO CLOSE"?"":" disabled"}>Close</button> <button class="ghost" data-a="Deferred">Defer</button>`}</td></tr>`}).join("")||`<tr><td colspan="6" class="empty">No orders are due today.</td></tr>`}</tbody></table></div>`;
+ $("#view").onclick=async e=>{const a=e.target.dataset.a,tr=e.target.closest("tr");if(e.target.dataset.print!==undefined)return window.print();if(!a||!tr)return;const o=os[tr.dataset.i];if(a==="chk"){cur=o.no;go("checklist");return}
   const rem=tr.querySelector("[data-r]").value.trim();if(a==="Deferred"&&!rem)return toast("Enter a remark to defer an order.",1);e.target.disabled=true;
   try{await call("closure",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,freq:o.freq,action:a,on:L.iso(TD),rem}});toast(`${o.no} ${a==="Closed"?"closed":"deferred"}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
@@ -68,12 +71,12 @@ V.checklist=()=>{const os=L.orders(M,TD),o=os.find(x=>x.no===cur),done=o&&(ms[o.
  if(items.length)upd()};
 
 V.tomorrow=()=>{const os=L.orders(M,TD+1);
- $("#view").innerHTML=`<p class="hint">${os.length} order(s) due on ${L.iso(TD+1).split("-").reverse().join("/")}</p><div class="wrap"><table><thead><tr><th>Sl.</th><th>Order no.</th><th>Equipment</th><th>Type</th><th>Location</th><th>Criticality</th><th>Frequency</th></tr></thead><tbody>${os.map((o,i)=>`<tr><td>${i+1}</td><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}</small></td><td>${esc(o.e.type)}</td><td>${esc(o.e.loc)}</td><td>${esc(o.e.crit)}</td><td>${o.freq}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No orders due tomorrow.</td></tr>`}</tbody></table></div>`};
+ $("#view").innerHTML=PH("Tomorrow’s maintenance orders, "+L.iso(TD+1).split("-").reverse().join("/"))+PB+`<p class="hint">${os.length} order(s) due on ${L.iso(TD+1).split("-").reverse().join("/")}</p><div class="wrap"><table><thead><tr><th>Sl.</th><th>Order no.</th><th>Equipment</th><th>Type</th><th>Location</th><th>Criticality</th><th>Frequency</th></tr></thead><tbody>${os.map((o,i)=>`<tr><td>${i+1}</td><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}</small></td><td>${esc(o.e.type)}</td><td>${esc(o.e.loc)}</td><td>${esc(o.e.crit)}</td><td>${o.freq}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No orders due tomorrow.</td></tr>`}</tbody></table></div>`};
 
 const tbl=(h,rows)=>`<div class="wrap"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")||`<tr><td colspan="${h.length}" class="empty">No records.</td></tr>`}</tbody></table></div>`;
-const histBar=()=>`<div class="bar"><label>Date <input type="date" id="hd" value="${hd}"></label><button data-load>Load</button></div>`;
-A.closure=()=>histBar()+(hist?tbl(["Order no.","Due","EQ ID","Equipment","Frequency","Action","Closed on","Closed by","Remarks"],hist.closures.map(c=>`<tr><td class="mono">${c.no}</td><td>${c.due}</td><td>${c.eq}</td><td>${esc(c.name)}</td><td>${c.freq}</td><td>${chip(c.action.toUpperCase())}</td><td>${c.on}</td><td>${esc(c.by)}</td><td>${esc(c.rem)}</td></tr>`)):`<p class="empty">Pick a date and click Load.</p>`);
-A.orders=()=>histBar()+(hist?hist.measurements.map(m=>`<details><summary><b class="mono">${m.no}</b> ${esc(m.name)} (${m.freq}), recorded by ${esc(m.by)} on ${m.on}</summary>${tbl(["Check item","Reading","Mandatory","OK / NOT OK","Result","Notes"],m.items.map(i=>`<tr><td>${esc(i.item)}</td><td>${esc(i.reading)} ${esc(i.unit)}</td><td>${i.mand}</td><td>${i.ok}</td><td>${chip(i.result)}</td><td>${esc(i.notes)}</td></tr>`))}</details>`).join("")||`<p class="empty">No records for this date.</p>`:`<p class="empty">Pick a date and click Load.</p>`);
+const histBar=()=>`<div class="bar noprint"><label>Date <input type="date" id="hd" value="${hd}"></label><button data-load>Load</button><button class="ghost" data-print>Print</button></div>`;
+A.closure=()=>PH("Closure history, "+hd.split("-").reverse().join("/"))+histBar()+(hist?tbl(["Order no.","Due","EQ ID","Equipment","Frequency","Action","Closed on","Closed by","Remarks"],hist.closures.map(c=>`<tr><td class="mono">${c.no}</td><td>${c.due}</td><td>${c.eq}</td><td>${esc(c.name)}</td><td>${c.freq}</td><td>${chip(c.action.toUpperCase())}</td><td>${c.on}</td><td>${esc(c.by)}</td><td>${esc(c.rem)}</td></tr>`)):`<p class="empty">Pick a date and click Load.</p>`);
+A.orders=()=>PH("Maintenance order history, "+hd.split("-").reverse().join("/"))+histBar()+(hist?hist.measurements.map(m=>`<details><summary><b class="mono">${m.no}</b> ${esc(m.name)} (${m.freq}), recorded by ${esc(m.by)} on ${m.on}</summary>${tbl(["Check item","Reading","Mandatory","OK / NOT OK","Result","Notes"],m.items.map(i=>`<tr><td>${esc(i.item)}</td><td>${esc(i.reading)} ${esc(i.unit)}</td><td>${i.mand}</td><td>${i.ok}</td><td>${chip(i.result)}</td><td>${esc(i.notes)}</td></tr>`))}</details>`).join("")||`<p class="empty">No records for this date.</p>`:`<p class="empty">Pick a date and click Load.</p>`);
 const sel=(k,i,v,l)=>`<select data-k="${k}" data-i="${i}">${l.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("")}</select>`;
 A.equip=()=>`<div class="bar"><button data-add>Add equipment</button><button data-save>Save changes</button><span class="hint">Set an equipment to Inactive instead of deleting it.</span></div>`+tbl(["EQ ID","Name","Type","Location","Status","Criticality","Schedule start","Make / model","Rating","Remarks"],M.equipment.map((e,i)=>`<tr><td class="mono">${esc(e.id)}</td><td><input data-k="name" data-i="${i}" value="${esc(e.name)}"></td><td>${sel("type",i,e.type,["",...M.types])}</td><td>${sel("loc",i,e.loc,["",...Object.keys(M.areas)])}</td><td>${sel("status",i,e.status,["Active","Inactive"])}</td><td>${sel("crit",i,e.crit,["","High","Medium","Low"])}</td><td><input type="date" data-k="start" data-i="${i}" value="${e.start}"></td><td><input data-k="make" data-i="${i}" value="${esc(e.make)}"></td><td><input data-k="rating" data-i="${i}" value="${esc(e.rating)}"></td><td><input data-k="remarks" data-i="${i}" value="${esc(e.remarks)}"></td></tr>`));
 const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -85,7 +88,8 @@ V.admin=()=>{if(R!=="admin"){$("#view").textContent="Admin access only.";return}
  $("#view").oninput=e=>{const d=e.target.dataset;if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value};
  $("#view").onchange=e=>{const d=e.target.dataset;if(d.area!==undefined){M.areas[d.area]=+e.target.value;return}if(d.t){(M.ticks[d.t]=M.ticks[d.t]||Array(7).fill(0))[d.f]=e.target.checked?1:0;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value;if(e.target.id==="hd")hd=e.target.value};
  $("#view").onclick=async e=>{const d=e.target.dataset;
-  if(d.s){sub=d.s;show()}
+  if(d.print!==undefined)window.print();
+  else if(d.s){sub=d.s;show()}
   else if(d.load!==undefined){try{hist=await call("history",{date:hd});show()}catch(x){toast(x.message,1)}}
   else if(d.add!==undefined){const l=M.equipment[M.equipment.length-1]?.id||"EQ-0000",m=/^(.*?)(\d+)$/.exec(l);M.equipment.push({id:m[1]+String(+m[2]+1).padStart(m[2].length,"0"),name:"",type:"",loc:"",make:"",rating:"",install:"",status:"Active",remarks:"",crit:"",start:""});show()}
   else if(d.save!==undefined){e.target.disabled=true;try{await call("master",{master:M});toast("Saved to the data repository.")}catch(x){toast(x.message,1)}e.target.disabled=false}}};
