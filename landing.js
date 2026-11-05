@@ -11,9 +11,12 @@ const show=()=>{const u=sessionStorage.cmmsUser;$("#login").hidden=!!u;$("#home"
  $("#unitTag").hidden=!u;if(u){$("#who").textContent=u;$("#unitTag").textContent=sessionStorage.cmmsUnit}title();
  document.querySelectorAll("[data-admin]").forEach(a=>a.hidden=sessionStorage.cmmsRole!=="admin")};
 $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err").textContent="";
- try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({action:"login",plant:$("#pl").value,section:$("#sc").value,username:$("#u").value.trim(),password:$("#p").value})});
-  const j=await r.json();if(j.error)throw new Error(j.error);
+ try{let r,j;
+  try{r=await fetch(C.url,{method:"POST",body:JSON.stringify({action:"login",plant:$("#pl").value,section:$("#sc").value,username:$("#u").value.trim(),password:$("#p").value})})}
+  catch(_){throw new Error("Cannot reach the server. Check the URL in config.js and your network connection.")}
+  try{j=await r.json()}catch(_){throw new Error("The server sent an unexpected reply. Check that the Worker is deployed with the latest worker.js.")}
+  if(j.error)throw new Error(j.error);
   sessionStorage.cmmsToken=j.token;sessionStorage.cmmsUser=j.user;sessionStorage.cmmsRole=j.role;sessionStorage.cmmsUnit=j.unit;$("#p").value="";show()}
- catch(x){$("#err").textContent=/fetch|JSON/i.test(x.message)?"Cannot reach the server. Check the URL in config.js.":x.message}
+ catch(x){$("#err").textContent=x.message}
  $("#go").disabled=false};
 $("#out").onclick=()=>{sessionStorage.clear();show()};show()})();
