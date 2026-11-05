@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Coal Washery E&amp;I Maintenance Management Portal</title>
+<title>Plant Management Portal</title>
 <link rel="stylesheet" href="landing.css"></head>
 <body>
 <svg class="scene" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
@@ -14,10 +14,13 @@
 </svg>
 <main class="hero">
  <div class="mark" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg></div>
- <h1><span>Coal Washery E&amp;I</span>Maintenance Management Portal</h1>
+ <h1><span>Plant Management Portal</h1>
+ <p id="unitTag" class="tag" hidden></p>
  <section id="login" class="card glass">
   <h2>Sign in</h2>
   <form id="lf">
+   <label>Plant <select id="pl"></select></label>
+   <label>Section <select id="sc"></select></label>
    <label>Username <input id="u" autocomplete="username" required></label>
    <label>Password <input id="p" type="password" autocomplete="current-password" required></label>
    <button id="go">Sign in</button><p id="err" class="bad" role="alert"></p>
@@ -35,5 +38,6 @@
   </div>
  </section>
 </main>
-<script src="config.js"></script><script src="landing.js"></script>
+<footer class="foot">Developed by Padmalochan &amp; Team</footer>
+<script src="config.js"></script><script src="plants.js"></script><script src="landing.js"></script>
 </body></html>
