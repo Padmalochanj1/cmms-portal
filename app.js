@@ -1,6 +1,7 @@
 (()=>{
 const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole;
 if(!T){location.replace("index.html");return}
+const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
@@ -12,7 +13,7 @@ async function call(a,b){let j;try{const r=await fetch(C.url,{method:"POST",body
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
  $("#sub").textContent=`${U}${R==="admin"?" (admin)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
 const st=o=>cl[o.no]?cl[o.no].action.toUpperCase():ms[o.no]?"READY TO CLOSE":L.items(M,o).length?"OPEN":"NO CHECKLIST";
-const PH=t=>`<div class="phead"><b>Coal Washery E&amp;I Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(U)}</small></div>`;
+const PH=t=>`<div class="phead"><b>${esc(UN)} Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(U)}</small></div>`;
 const PB=`<div class="bar noprint"><button class="ghost" data-print>Print</button></div>`;
 window.onbeforeprint=()=>document.querySelectorAll("details").forEach(d=>d.open=true);
 const chip=s=>`<span class="chip ${s.replace(/ /g,"_")}">${s}</span>`;
@@ -117,16 +118,26 @@ const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunda
 A.sched=()=>`<div class="bar"><button data-save>Save changes</button><span class="hint">Weekly and longer maintenance for all equipment at a location falls on its assigned day. Changing a day moves the next due dates, so save before using the closing pages.</span></div>
 <h3>Assigned day for each location</h3>`+tbl(["Location","Assigned day"],Object.keys(M.areas).map(a=>`<tr><td>${esc(a)}</td><td><select data-area="${esc(a)}">${DAYS.map((d,i)=>`<option value="${i+1}"${+M.areas[a]===i+1?" selected":""}>${d}</option>`).join("")}</select></td></tr>`))+
 `<h3 style="margin-top:24px">Frequencies for each equipment type</h3><p class="hint">Tick the frequencies each type needs. Start date and criticality are set per equipment in Equipment details.</p>`+tbl(["Type",...M.settings.freqs],M.types.map(t=>`<tr><td>${esc(t)}</td>${M.settings.freqs.map((f,j)=>`<td><input type="checkbox" data-t="${esc(t)}" data-f="${j}"${(M.ticks[t]||[])[j]?" checked":""}></td>`).join("")}</tr>`));
+let ct="",cf="";
+A.checklist=()=>{const rows=M.library.map((r,i)=>[r,i]).filter(([r])=>(!ct||r.type===ct)&&(!cf||r.freq===cf)).sort((a,b)=>a[0].type.localeCompare(b[0].type)||M.settings.freqs.indexOf(a[0].freq)-M.settings.freqs.indexOf(b[0].freq)||a[0].seq-b[0].seq);
+ const yn=(k,i,v)=>`<select data-lk="${k}" data-li="${i}"><option${v==="Yes"?" selected":""}>Yes</option><option${v==="Yes"?"":" selected"}>No</option></select>`;
+ return`<div class="bar"><label>Equipment type <select id="ct"><option value="">All</option>${M.types.map(t=>`<option${t===ct?" selected":""}>${esc(t)}</option>`).join("")}</select></label><label>Frequency <select id="cf"><option value="">All</option>${M.settings.freqs.map(f=>`<option${f===cf?" selected":""}>${f}</option>`).join("")}</select></label><button data-addchk>Add item</button><button data-save>Save changes</button></div>
+ <p class="hint">Choose an equipment type and a frequency to add an item to that checklist. Set Active to No to hide an item without deleting it. Changes apply to new checklists only.</p>`+
+ tbl(["ID","Seq.","Check item","Reading required","Unit","Acceptance criteria","Mandatory","Active",""],rows.map(([r,i])=>`<tr><td class="mono">${esc(r.id)}<small>${esc(r.type)}, ${esc(r.freq)}</small></td><td><input type="number" style="width:60px" data-lk="seq" data-li="${i}" value="${r.seq}"></td><td><input data-lk="item" data-li="${i}" value="${esc(r.item)}"></td><td>${yn("readReq",i,r.readReq)}</td><td><input style="width:70px" data-lk="unit" data-li="${i}" value="${esc(r.unit)}"></td><td><input data-lk="criteria" data-li="${i}" value="${esc(r.criteria)}"></td><td>${yn("mand",i,r.mand)}</td><td>${yn("active",i,r.active)}</td><td><button class="ghost" data-delchk="${i}">Delete</button></td></tr>`))};
 V.admin=()=>{if(R!=="admin"){$("#view").textContent="Admin access only.";return}
- const show=()=>{$("#view").innerHTML=`<div class="subtabs">${[["closure","Closure history"],["orders","Maintenance order history"],["equip","Equipment details"],["sched","Maintenance scheduling"]].map(([k,n])=>`<button class="ghost${sub===k?" on":""}" data-s="${k}">${n}</button>`).join("")}</div>${A[sub]()}`};show();
- $("#view").oninput=e=>{const d=e.target.dataset;if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value};
- $("#view").onchange=e=>{const d=e.target.dataset;if(d.area!==undefined){M.areas[d.area]=+e.target.value;return}if(d.t){(M.ticks[d.t]=M.ticks[d.t]||Array(7).fill(0))[d.f]=e.target.checked?1:0;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value;if(e.target.id==="hd")hd=e.target.value};
+ const show=()=>{$("#view").innerHTML=`<div class="subtabs">${[["closure","Closure history"],["orders","Maintenance order history"],["equip","Equipment details"],["sched","Maintenance scheduling"],["checklist","Checklist items"]].map(([k,n])=>`<button class="ghost${sub===k?" on":""}" data-s="${k}">${n}</button>`).join("")}</div>${A[sub]()}`};show();
+ $("#view").oninput=e=>{const d=e.target.dataset;if(d.lk!==undefined){M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value};
+ $("#view").onchange=e=>{const d=e.target.dataset;if(e.target.id==="ct"||e.target.id==="cf"){if(e.target.id==="ct")ct=e.target.value;else cf=e.target.value;show();return}if(d.lk!==undefined){M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;return}if(d.area!==undefined){M.areas[d.area]=+e.target.value;return}if(d.t){(M.ticks[d.t]=M.ticks[d.t]||Array(7).fill(0))[d.f]=e.target.checked?1:0;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value;if(e.target.id==="hd")hd=e.target.value};
  $("#view").onclick=async e=>{const d=e.target.dataset;
   if(d.print!==undefined)window.print();
   else if(d.s){sub=d.s;show()}
   else if(d.load!==undefined){try{hist=await call("history",{date:hd});show()}catch(x){toast(x.message,1)}}
   else if(d.add!==undefined){const l=M.equipment[M.equipment.length-1]?.id||"EQ-0000",m=/^(.*?)(\d+)$/.exec(l);M.equipment.push({id:m[1]+String(+m[2]+1).padStart(m[2].length,"0"),name:"",type:"",loc:"",make:"",rating:"",install:"",status:"Active",remarks:"",crit:"",start:""});show()}
-  else if(d.save!==undefined){e.target.disabled=true;try{await call("master",{master:M});toast("Saved to the data repository.")}catch(x){toast(x.message,1)}e.target.disabled=false}}};
+  else if(d.addchk!==undefined){if(!ct||!cf)return toast("Select an equipment type and a frequency first.",1);
+   const pre=ct.slice(0,4).toUpperCase().replace(/[^A-Z]/g,"")+"-"+cf.slice(0,3).toUpperCase()+"-",nums=M.library.filter(r=>r.id.startsWith(pre)).map(r=>+r.id.slice(pre.length)||0),seqs=M.library.filter(r=>r.type===ct&&r.freq===cf).map(r=>+r.seq||0);
+   M.library.push({id:pre+String(Math.max(0,...nums)+1).padStart(2,"0"),type:ct,freq:cf,seq:Math.max(0,...seqs)+1,item:"",readReq:"No",unit:"",criteria:"",mand:"Yes",active:"Yes",ref:""});show()}
+  else if(d.delchk!==undefined){if(confirm("Delete this checklist item? Records already saved are not affected.")){M.library.splice(+d.delchk,1);show()}}
+  else if(d.save!==undefined){if(sub==="checklist"&&M.library.some(r=>!String(r.item).trim()))return toast("Fill in or delete the empty checklist items first.",1);e.target.disabled=true;try{await call("master",{master:M});toast("Saved to the data repository.")}catch(x){toast(x.message,1)}e.target.disabled=false}}};
 
 (async()=>{try{await load()}catch(e){$("#view").innerHTML=`<p class="empty">Could not load data: ${esc(e.message)}</p>`}})();
 })();
