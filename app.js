@@ -4,15 +4,15 @@ if(!T){location.replace("index.html");return}
 const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
-let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-const V={},A={},ROUTES=[["dashboard","Dashboard"],["closing","Order closing"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]].concat(R==="admin"?[["admin","Admin"]]:[]);
+let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
+const V={},A={},ROUTES=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]].concat(R==="admin"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("index.html")}throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
  $("#sub").textContent=`${U}${R==="admin"?" (admin)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
-const st=o=>cl[o.no]?cl[o.no].action.toUpperCase():ms[o.no]?"READY TO CLOSE":L.items(M,o).length?"OPEN":"NO CHECKLIST";
+const st=o=>{const c=cl[o.no]||RG.cl[o.no];return c?c.action.toUpperCase():(ms[o.no]||RG.ms[o.no])?"READY TO CLOSE":L.items(M,o).length?"OPEN":"NO CHECKLIST"};
 const PH=t=>`<div class="phead"><b>${esc(UN)} Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(U)}</small></div>`;
 const PB=`<div class="bar noprint"><button class="ghost" data-print>Print</button></div>`;
 window.onbeforeprint=()=>document.querySelectorAll("details").forEach(d=>d.open=true);
@@ -58,8 +58,8 @@ V.closing=()=>{const os=L.orders(M,TD);
   try{await call("closure",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,freq:o.freq,action:a,on:L.iso(TD),rem}});toast(`${o.no} ${a==="Closed"?"closed":"deferred"}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
 const res=i=>!i.ok?"":i.ok==="OK"?"PASS":i.notes.trim().length>20?"ATTENTION":"FAIL";
-V.checklist=()=>{const os=L.orders(M,TD),o=os.find(x=>x.no===cur),done=o&&(ms[o.no]||cl[o.no]);items=o&&!done?L.items(M,o).map(r=>({r,reading:"",ok:"",notes:""})):[];
- $("#view").innerHTML=`<label class="pick">Maintenance order <select id="ord"><option value="">Select the order number</option>${os.map(x=>`<option${x.no===cur?" selected":""}>${x.no}</option>`).join("")}</select></label>`+
+V.checklist=()=>{const os=L.orders(M,TD),o=os.find(x=>x.no===cur)||(pastOrder&&pastOrder.no===cur?pastOrder:null),done=o&&(ms[o.no]||cl[o.no]||RG.ms[o.no]||RG.cl[o.no]);items=o&&!done?L.items(M,o).map(r=>({r,reading:"",ok:"",notes:""})):[];
+ $("#view").innerHTML=`<label class="pick">Maintenance order <select id="ord"><option value="">Select the order number</option>${[...os,...(pastOrder&&!os.some(x=>x.no===pastOrder.no)?[pastOrder]:[])].map(x=>`<option${x.no===cur?" selected":""}>${x.no}</option>`).join("")}</select></label>`+
  (o?`<div class="grid">${[["EQ ID",o.e.id],["Equipment",o.e.name],["Type",o.e.type],["Frequency",o.freq],["Location",o.e.loc],["Criticality",o.e.crit],["Status",st(o)]].map(([a,b])=>`<div><span>${a}</span>${esc(b)}</div>`).join("")}</div>`:"")+
  (done?`<p class="empty">The checklist for this order is already saved.</p>`:o&&!items.length?`<p class="empty">No active checklist items for ${esc(o.e.type)} / ${esc(o.freq)}.</p>`:o?`<div class="wrap"><table><thead><tr><th>Seq.</th><th>Check item</th><th>Actual reading</th><th>Mandatory</th><th>Acceptance criteria</th><th>OK / NOT OK</th><th>Notes</th><th>Result</th></tr></thead><tbody>${items.map(({r},i)=>`<tr data-i="${i}"><td>${r.seq}</td><td>${esc(r.item)}<small>${esc(r.id)}</small></td><td>${r.readReq==="Yes"?`<input data-k="reading" size="7"> ${esc(r.unit)}`:"Not required"}</td><td>${esc(r.mand)}</td><td>${esc(r.criteria)}</td><td><select data-k="ok"><option></option><option>OK</option><option>NOT OK</option></select></td><td><input data-k="notes" placeholder="Required if NOT OK (more than 20 characters)"></td><td class="r"></td></tr>`).join("")}</tbody></table></div><div class="bar"><b id="ckState"></b><button id="saveCk" disabled>Save checklist</button></div>`:"");
  const upd=()=>{items.forEach((it,i)=>{const t=res(it),c=$("#view").querySelectorAll("tbody .r")[i];if(c)c.innerHTML=t?chip(t):""});const rs=items.map(res),n=rs.filter(x=>x==="PASS"||x==="ATTENTION").length,ok=items.length&&n===items.length;
@@ -68,8 +68,28 @@ V.checklist=()=>{const os=L.orders(M,TD),o=os.find(x=>x.no===cur),done=o&&(ms[o.
  $("#view").onclick=async e=>{if(e.target.id!=="saveCk")return;e.target.disabled=true;
   try{const r=await call("measurement",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,type:o.e.type,freq:o.freq,loc:o.e.loc,crit:o.e.crit,on:L.iso(TD),
    items:items.map(({r,reading,ok,notes})=>({id:r.id,item:r.item,unit:r.unit||"",reading:reading===""?"":isNaN(reading)?reading:Number(reading),mand:r.mand,criteria:r.criteria,ok,result:res({ok,notes}),notes:notes.trim()}))}});
-   if(r.duplicate)toast("This order’s checklist is already saved.",1);else toast(`Checklist saved for ${o.no}.`);cur="";await load()}catch(x){toast(x.message,1);e.target.disabled=false}};
+   if(r.duplicate)toast("This order’s checklist is already saved.",1);else toast(`Checklist saved for ${o.no}.`);const back=pastOrder&&pastOrder.no===cur;cur="";if(back){pastOrder=null;await load();RG.done=false;go("report")}else await load()}catch(x){toast(x.message,1);e.target.disabled=false}};
  if(items.length)upd()};
+
+async function rload(){try{const d=await call("range",{from:L.iso(TD-RG.days),to:L.iso(TD-1)});RG.cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));RG.ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]))}catch(x){toast(x.message,1)}RG.done=true;if(route==="report")draw()}
+const dmy=x=>String(x).split("-").reverse().join("/");
+V.report=()=>{if(!RG.done){rload();$("#view").innerHTML=`<p class="empty">Loading the closure report...</p>`;return}
+ const all=[];for(let t=TD-RG.days;t<TD;t++)L.orders(M,t).forEach(o=>all.push(o));
+ const cnt=k=>all.filter(o=>st(o)===k).length,closed=cnt("CLOSED"),def=cnt("DEFERRED"),pend=all.length-closed-def,late=all.filter(o=>{const c=RG.cl[o.no];return c&&c.action==="Closed"&&c.on>L.iso(o.due)}).length;
+ const f=all.filter(o=>rf==="All"||(rf==="Pending"?!RG.cl[o.no]:st(o)===rf.toUpperCase())).sort((a,b)=>a.due-b.due);
+ const kp=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`,v=$("#view");
+ v.innerHTML=PH(`Closure report, ${dmy(L.iso(TD-RG.days))} to ${dmy(L.iso(TD-1))}`)+`<div class="kpis">${kp(all.length,"Orders due",COL.blue)}${kp(closed,"Closed",COL.green)}${kp(def,"Deferred",COL.amber)}${kp(pend,"Still pending",COL.red)}${kp(late,"Closed late",COL.violet)}</div>
+ <div class="bar noprint"><label>Period <select id="rd"><option value="7"${RG.days===7?" selected":""}>Last 7 days</option><option value="14"${RG.days===14?" selected":""}>Last 14 days</option></select></label>
+ <label>Show <select id="rfl">${["Pending","Closed","Deferred","All"].map(x=>`<option${x===rf?" selected":""}>${x}</option>`).join("")}</select></label><button class="ghost" data-print>Print</button></div>
+ <p class="hint">${f.length} order(s) shown. Orders before today are listed from the current schedule.</p>`+
+ tbl(["Order no.","Due date","Overdue","Equipment","Criticality","Status","Closed on / by","Remarks",'<span class="noprint"></span>'],f.map((o,i)=>{const c=RG.cl[o.no],s2=st(o);
+  return`<tr data-i="${i}"><td class="mono">${o.no}</td><td>${dmy(L.iso(o.due))}</td><td>${c?"":TD-o.due+" d"}</td><td>${esc(o.e.name)}<small>${o.e.id}, ${esc(o.e.type)}, ${esc(o.e.loc)}</small></td><td>${esc(o.e.crit)}</td><td>${chip(s2)}</td><td>${c?`${dmy(c.on)} by ${esc(c.by)}${c.action==="Closed"&&c.on>L.iso(o.due)?" (late)":""}`:""}</td><td><input data-r value="${esc(c?.rem||"")}"${c?" disabled":""}></td>
+  <td class="noprint">${c?"":`<button class="link" data-a="chk">Checklist</button> <button data-a="Closed"${s2==="READY TO CLOSE"?"":" disabled"}>Close</button> <button class="ghost" data-a="Deferred">Defer</button>`}</td></tr>`}));
+ v.onchange=e=>{if(e.target.id==="rd"){RG.days=+e.target.value;RG.done=false;V.report()}else if(e.target.id==="rfl"){rf=e.target.value;V.report()}};
+ v.onclick=async e=>{if(e.target.dataset.print!==undefined)return window.print();const a=e.target.dataset.a,tr=e.target.closest("tr");if(!a||!tr)return;const o=f[tr.dataset.i];
+  if(a==="chk"){cur=o.no;pastOrder=o;go("checklist");return}
+  const rem=tr.querySelector("[data-r]").value.trim();if(a==="Deferred"&&!rem)return toast("Enter a remark to defer an order.",1);e.target.disabled=true;
+  try{await call("closure",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,freq:o.freq,action:a,on:L.iso(TD),rem}});toast(`${o.no} ${a==="Closed"?"closed":"deferred"}.`);await rload()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
 V.tomorrow=()=>{const os=L.orders(M,TD+1);
  $("#view").innerHTML=PH("Tomorrow’s maintenance orders, "+L.iso(TD+1).split("-").reverse().join("/"))+PB+`<p class="hint">${os.length} order(s) due on ${L.iso(TD+1).split("-").reverse().join("/")}</p><div class="wrap"><table><thead><tr><th>Sl.</th><th>Order no.</th><th>Equipment</th><th>Type</th><th>Location</th><th>Criticality</th><th>Frequency</th></tr></thead><tbody>${os.map((o,i)=>`<tr><td>${i+1}</td><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}</small></td><td>${esc(o.e.type)}</td><td>${esc(o.e.loc)}</td><td>${esc(o.e.crit)}</td><td>${o.freq}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No orders due tomorrow.</td></tr>`}</tbody></table></div>`};
