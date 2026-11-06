@@ -7,7 +7,7 @@ const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYea
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
 const V={},A={},ROUTES=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]].concat(R==="admin"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
-async function call(a,b){let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
+async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));

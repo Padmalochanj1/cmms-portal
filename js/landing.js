@@ -12,9 +12,10 @@ const show=()=>{const u=sessionStorage.cmmsUser;$("#login").hidden=!!u;$("#home"
  document.querySelectorAll("[data-admin]").forEach(a=>a.hidden=sessionStorage.cmmsRole!=="admin")};
 $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err").textContent="";
  try{let r,j;
+  if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address (it starts with https://).");
   try{r=await fetch(C.url,{method:"POST",body:JSON.stringify({action:"login",plant:$("#pl").value,section:$("#sc").value,username:$("#u").value.trim(),password:$("#p").value})})}
   catch(_){throw new Error("Cannot reach the server. Check the URL in config.js and your network connection.")}
-  try{j=await r.json()}catch(_){throw new Error("The server sent an unexpected reply. Check that the Worker is deployed with the latest worker.js.")}
+  try{j=await r.json()}catch(_){throw new Error("The server sent an unexpected reply (HTTP "+r.status+"). Check the Worker address in js/config.js, and that the Worker is deployed.")}
   if(j.error)throw new Error(j.error);
   sessionStorage.cmmsToken=j.token;sessionStorage.cmmsUser=j.user;sessionStorage.cmmsRole=j.role;sessionStorage.cmmsUnit=j.unit;$("#p").value="";show()}
  catch(x){$("#err").textContent=x.message}
