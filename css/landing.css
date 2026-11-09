@@ -30,3 +30,8 @@ button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:9px;pa
 select option{color:#000}select:disabled{opacity:.6}
 .tag{margin:-22px 0 26px;padding:5px 16px;border-radius:999px;font-size:14px;font-weight:600;color:var(--amber);background:rgba(255,157,46,.12);border:1px solid rgba(255,157,46,.4)}
 .foot{position:absolute;left:0;right:0;bottom:8px;z-index:2;text-align:center;font-size:11px;letter-spacing:.03em;color:rgba(234,242,248,.7);pointer-events:none}
+#login{width:min(780px,100%)}
+#lf{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
+#lf .col+.col{border-left:1px solid rgba(255,255,255,.16);padding-left:32px}
+#lf .col h3{margin:0 0 14px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber)}
+@media(max-width:680px){#lf{grid-template-columns:1fr}#lf .col+.col{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.16);padding-top:16px;margin-top:6px}}
