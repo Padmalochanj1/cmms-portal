@@ -9,7 +9,7 @@ $("#pl").innerHTML=P.map(p=>`<option value="${p.id}">${e(p.name)}</option>`).joi
 $("#pl").onchange=()=>{localStorage.cmmsPlant=$("#pl").value;secs()};$("#sc").onchange=()=>{localStorage.cmmsSection=$("#sc").value;title(label())};
 const show=()=>{const u=sessionStorage.cmmsUser;$("#login").hidden=!!u;$("#home").hidden=!u;
  $("#unitTag").hidden=!u;if(u){$("#who").textContent=u;$("#unitTag").textContent=sessionStorage.cmmsUnit}title();
- document.querySelectorAll("[data-admin]").forEach(a=>a.hidden=sessionStorage.cmmsRole!=="admin")};
+ document.querySelectorAll("[data-sec]").forEach(a=>{const role=sessionStorage.cmmsRole;a.hidden=a.dataset.sec!==(sessionStorage.cmmsSection||"ei")||(a.dataset.roles&&!a.dataset.roles.split(",").includes(role))||(a.hasAttribute("data-admin")&&role!=="admin")})};
 $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err").textContent="";
  try{let r,j;
   if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address (it starts with https://).");
@@ -17,7 +17,7 @@ $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err"
   catch(_){throw new Error("Cannot reach the server. Check the URL in config.js and your network connection.")}
   try{j=await r.json()}catch(_){throw new Error("The server sent an unexpected reply (HTTP "+r.status+"). Check the Worker address in js/config.js, and that the Worker is deployed.")}
   if(j.error)throw new Error(j.error);
-  sessionStorage.cmmsToken=j.token;sessionStorage.cmmsUser=j.user;sessionStorage.cmmsRole=j.role;sessionStorage.cmmsUnit=j.unit;$("#p").value="";show()}
+  sessionStorage.cmmsToken=j.token;sessionStorage.cmmsUser=j.user;sessionStorage.cmmsRole=j.role;sessionStorage.cmmsUnit=j.unit;sessionStorage.cmmsSection=$("#sc").value;$("#p").value="";show()}
  catch(x){$("#err").textContent=x.message}
  $("#go").disabled=false};
 $("#out").onclick=()=>{sessionStorage.clear();show()};show()})();
