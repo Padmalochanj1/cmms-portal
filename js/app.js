@@ -2,7 +2,7 @@
 const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole;
 if(!T){location.replace("../index.html");return}
 if(sessionStorage.cmmsSection==="ops"){location.replace("ops.html");return}
-const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
+const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" Maintenance Management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
