@@ -6,7 +6,7 @@ body{margin:0;min-height:100vh;position:relative;color:var(--ink);font:16px/1.5 
 .hero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:7vh 20px 34vh}
 .mark{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;color:#2a1600;background:linear-gradient(135deg,#ffc15e,var(--amber));box-shadow:0 8px 30px rgba(255,157,46,.4)}
 .mark svg,.ico svg{width:60%;height:60%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-h1{margin:28px 0 38px;text-align:center;font-weight:600;font-size:clamp(25px,5vw,45px);line-height:1.12;letter-spacing:-.01em;max-width:26ch;text-wrap:balance}
+h1{margin:22px 0 38px;text-align:center;font-weight:600;font-size:clamp(28px,5vw,48px);line-height:1.12;letter-spacing:-.01em;max-width:26ch;text-wrap:balance}
 h1 span{display:block;background:linear-gradient(90deg,#ffc15e,var(--amber) 50%,#ff7a2e);-webkit-background-clip:text;background-clip:text;color:transparent}
 .glass{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-radius:16px}
 .card{width:min(400px,100%);padding:28px}.card h2{margin:0 0 16px;font-size:18px;font-weight:600}
@@ -35,3 +35,7 @@ select option{color:#000}select:disabled{opacity:.6}
 #lf .col+.col{border-left:1px solid rgba(255,255,255,.16);padding-left:32px}
 #lf .col h3{margin:0 0 14px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--amber)}
 @media(max-width:680px){#lf{grid-template-columns:1fr}#lf .col+.col{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.16);padding-top:16px;margin-top:6px}}
+.forgot{display:inline-block;margin-top:10px;font-size:13px;color:var(--mut)}.fnote{color:var(--mut);font-size:13px;margin:8px 0}
+.acct{margin:-6px 0 14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.okmsg{color:#6fe3a5;min-height:1.4em;margin:0 0 8px;text-align:center}
+.card.wide{width:min(660px,100%)}.pform button{margin-top:6px}.ut{width:100%;border-collapse:collapse}.ut th,.ut td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.14);text-align:left}.ut th{font-size:12px;color:var(--mut)}.wrap{overflow-x:auto}
+.temp{background:rgba(255,157,46,.12);border:1px solid rgba(255,157,46,.5);padding:12px;border-radius:9px;margin:12px 0}.temp code{font-size:18px;color:var(--amber);letter-spacing:.05em}
