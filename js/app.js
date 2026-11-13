@@ -2,17 +2,17 @@
 const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole;
 if(!T){location.replace("../index.html");return}
 if(sessionStorage.cmmsSection==="ops"){location.replace("ops.html");return}
-const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" Maintenance Management";document.title=UN+" Maintenance Management Portal";
+const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-const V={},A={},ROUTES=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]].concat(R==="admin"?[["admin","Admin"]]:[]);
+const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications"].includes(r[0])):ALL).concat(R==="admin"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
- if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}throw new Error(j.error)}return j}
+ if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
- $("#sub").textContent=`${U}${R==="admin"?" (admin)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
+ $("#sub").textContent=`${U}${R==="admin"?" (admin)":R==="mgmt"?" (management, view only)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
 const st=o=>{const c=cl[o.no]||RG.cl[o.no];return c?c.action.toUpperCase():(ms[o.no]||RG.ms[o.no])?"READY TO CLOSE":L.items(M,o).length?"OPEN":"NO CHECKLIST"};
 const PH=t=>`<div class="phead"><b>${esc(UN)} Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(U)}</small></div>`;
 const PB=`<div class="bar noprint"><button class="ghost" data-print>Print</button></div>`;
@@ -20,7 +20,7 @@ window.onbeforeprint=()=>document.querySelectorAll("details").forEach(d=>d.open=
 const chip=s=>`<span class="chip ${s.replace(/ /g,"_")}">${s}</span>`;
 const bars=l=>{const m=Math.max(1,...l.map(x=>x[1]));return l.map(([a,n])=>`<div class="bar2"><span>${a}</span><i style="width:${n/m*100}%"></i><em>${n}</em></div>`).join("")};
 const go=r=>{route=r;location.hash=r;draw()};
-function draw(){if(!M)return;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
+function draw(){if(!M)return;if(!ROUTES.some(r=>r[0]===route))route="dashboard";$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
  const v=$("#view");v.oninput=v.onchange=null;v.onclick=e=>{if(e.target.dataset.print!==undefined)window.print()};(V[route]||V.dashboard)()}
 $("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};
 $("#refresh").onclick=()=>load().then(()=>toast("Refreshed.")).catch(e=>toast(e.message,1));
@@ -84,8 +84,8 @@ V.report=()=>{if(!RG.done){rload();$("#view").innerHTML=`<p class="empty">Loadin
  <label>Show <select id="rfl">${["Pending","Closed","Deferred","All"].map(x=>`<option${x===rf?" selected":""}>${x}</option>`).join("")}</select></label><button class="ghost" data-print>Print</button></div>
  <p class="hint">${f.length} order(s) shown. Orders before today are listed from the current schedule.</p>`+
  tbl(["Order no.","Due date","Overdue","Equipment","Criticality","Status","Closed on / by","Remarks",'<span class="noprint"></span>'],f.map((o,i)=>{const c=RG.cl[o.no],s2=st(o);
-  return`<tr data-i="${i}"><td class="mono">${o.no}</td><td>${dmy(L.iso(o.due))}</td><td>${c?"":TD-o.due+" d"}</td><td>${esc(o.e.name)}<small>${o.e.id}, ${esc(o.e.type)}, ${esc(o.e.loc)}</small></td><td>${esc(o.e.crit)}</td><td>${chip(s2)}</td><td>${c?`${dmy(c.on)} by ${esc(c.by)}${c.action==="Closed"&&c.on>L.iso(o.due)?" (late)":""}`:""}</td><td><input data-r value="${esc(c?.rem||"")}"${c?" disabled":""}></td>
-  <td class="noprint">${c?"":`<button class="link" data-a="chk">Checklist</button> <button data-a="Closed"${s2==="READY TO CLOSE"?"":" disabled"}>Close</button> <button class="ghost" data-a="Deferred">Defer</button>`}</td></tr>`}));
+  return`<tr data-i="${i}"><td class="mono">${o.no}</td><td>${dmy(L.iso(o.due))}</td><td>${c?"":TD-o.due+" d"}</td><td>${esc(o.e.name)}<small>${o.e.id}, ${esc(o.e.type)}, ${esc(o.e.loc)}</small></td><td>${esc(o.e.crit)}</td><td>${chip(s2)}</td><td>${c?`${dmy(c.on)} by ${esc(c.by)}${c.action==="Closed"&&c.on>L.iso(o.due)?" (late)":""}`:""}</td><td><input data-r value="${esc(c?.rem||"")}"${c||R==="mgmt"?" disabled":""}></td>
+  <td class="noprint">${c||R==="mgmt"?"":`<button class="link" data-a="chk">Checklist</button> <button data-a="Closed"${s2==="READY TO CLOSE"?"":" disabled"}>Close</button> <button class="ghost" data-a="Deferred">Defer</button>`}</td></tr>`}));
  v.onchange=e=>{if(e.target.id==="rd"){RG.days=+e.target.value;RG.done=false;V.report()}else if(e.target.id==="rfl"){rf=e.target.value;V.report()}};
  v.onclick=async e=>{if(e.target.dataset.print!==undefined)return window.print();const a=e.target.dataset.a,tr=e.target.closest("tr");if(!a||!tr)return;const o=f[tr.dataset.i];
   if(a==="chk"){cur=o.no;pastOrder=o;go("checklist");return}
@@ -115,7 +115,7 @@ V.notifications=()=>{if(nl===null){nload();$("#view").innerHTML=`<p class="empty
  <label class="wide">Team members <input id="ntm" maxlength="300" placeholder="Names separated by commas"></label></div>
  <div class="bar"><button id="nsave">Save notification</button></div></section>
  <div class="bar noprint"><label>Month <input type="month" id="nmth" value="${nm}"></label><label>Type <select id="fT"><option value="">All</option>${NT.map(t=>`<option${nf.type===t?" selected":""}>${t}</option>`).join("")}</select></label>
- <label>Area <select id="fA"><option value="">All</option>${areas.map(a=>`<option${nf.area===a?" selected":""}>${esc(a)}</option>`).join("")}</select></label><label>Search <input id="fQ" value="${esc(nf.q)}"></label><button class="ghost" data-print>Print</button></div><div id="nlist">${nrows()}</div>`;
+ <label>Area <select id="fA"><option value="">All</option>${areas.map(a=>`<option${nf.area===a?" selected":""}>${esc(a)}</option>`).join("")}</select></label><label>Search <input id="fQ" value="${esc(nf.q)}"></label><button class="ghost" data-print>Print</button></div><div id="nlist">${nrows()}</div>`;if(R==="mgmt")v.querySelector("section.dc.noprint")?.remove();
  v.oninput=v.onchange=e=>{const id=e.target.id;
   if(id==="nt"){$("#ndw").hidden=e.target.value!=="Breakdown";$("#nkw").hidden=e.target.value!=="Improvement"}
   else if(id==="na"){$("#ne").innerHTML=e.target.value?`<option value="">Select equipment</option>`+M.equipment.filter(x=>x.loc===e.target.value&&x.status!=="Inactive").map(x=>`<option value="${esc(x.id)}">${esc(x.id)} - ${esc(x.name)}</option>`).join(""):`<option value="">Select area first</option>`}
