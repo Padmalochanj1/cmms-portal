@@ -13,7 +13,7 @@ const ROUTES=[["dashboard","Dashboard"]].concat(R!=="mgmt"?[["entry","Data entry
 let route=ROUTES.some(r=>r[0]===(location.hash||"").slice(1))?location.hash.slice(1):"dashboard";
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
  try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
- if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}throw new Error(j.error)}return j}
+ if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function ensure(from,to,force){if(!force&&S.loaded&&S.from===from&&S.to===to)return;const d=await call("ops_range",{from,to});S.recs=d.records;S.cfg=mergeCfg(d.config);S.from=from;S.to=to;S.loaded=true;if(!S.basis)S.basis=S.cfg.yieldBasis||"saleable"}
 const win=()=>route==="dashboard"?[O.addDays(S.date,-30),S.date]:(route==="records"||route==="reports")?[S.month+"-01",lastDay(S.month)]:route==="entry"?[S.sel.date,S.sel.date]:[O.addDays(todayISO(),-1),todayISO()];
 async function show(force){const v=$("#view");v.onclick=v.oninput=v.onchange=null;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
