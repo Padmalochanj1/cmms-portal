@@ -21,9 +21,10 @@ server/worker.js      Cloudflare Worker code (for reference; it is deployed in C
 - Server settings (GH_TOKEN, GH_REPO, SECRET, USERS, USERS_COKE_OVEN_EI) are in Cloudflare, never in this repo.
 - Do not put `master.json` or any records in this repo. This repo is public.
 
-## Coke Oven Operation section
-- Sign in with Plant = Coke Oven, Section = Operation.
-- Roles (set in the Cloudflare secret USERS_COKE_OVEN_OPS): `admin` = Administrator, `entry` = Data Entry, `mgmt` = Management.
-  Example: {"admin":["pw1","admin"],"entry1":["pw2","entry"],"manager":["pw3","mgmt"]}
-- Data is saved in the private data repo under `coke-oven-ops/`: `records/<date>.json` (one file per day, shifts A/B/C, with audit trail) and `config.json` (targets, limits, lists). No file needs to be uploaded first; defaults are built in.
-- Redeploy `server/worker.js` in Cloudflare after updating.
+## User roles
+- E&I sections (Coal Washery and Coke Oven): `admin` (full access, admin pages), `user` (closing, checklist, notifications), `mgmt` (Management: view only - Dashboard, Closure report, Tomorrow's orders, Notifications list).
+- Operation section: `admin` (Administrator), `entry` (Data entry), `mgmt` (Management).
+- Roles are set in the Cloudflare secret next to each password, for example {"admin":["pw1","admin"],"user01":["pw2","user"],"manager":["pw3","mgmt"]}.
+
+## Start and end time (E&I)
+Every maintenance order has a Start time and End time on Order closing and Closure report. Both are required to Close an order (optional when deferring). They are saved with the closure record and shown in the Admin closure history with the duration. A time typed but not yet saved is kept in the browser on the same computer.
