@@ -57,3 +57,15 @@ select option{color:#000}select:disabled{opacity:.6}
 .acct{margin:-6px 0 14px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center}.okmsg{color:#1b7f4b;min-height:1.4em;margin:0 0 8px;text-align:center}
 .card.wide{width:min(660px,100%)}.pform button{margin-top:6px}.ut{width:100%;border-collapse:collapse}.ut th,.ut td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}.ut th{font-size:12px;color:var(--mut)}.wrap{overflow-x:auto}
 .temp{background:rgba(255,157,46,.12);border:1px solid rgba(255,157,46,.5);padding:12px;border-radius:9px;margin:12px 0}.temp code{font-size:18px;color:var(--amberd);letter-spacing:.05em}
+@media (max-width: 600px) {
+    .mark {
+        top: 12px;
+        left: 12px;
+        width: 115px;
+        height: 64px;
+    }
+
+    .hero {
+        padding-top: 100px;
+    }
+}
