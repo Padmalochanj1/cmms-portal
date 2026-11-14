@@ -36,8 +36,8 @@ button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:9px;pa
 .bad{color:#c0392b;min-height:1.4em;margin:12px 0 0;font-size:14px}
 .who{display:flex;align-items:center;gap:14px;margin:0 0 22px;color:var(--mut)}.who b{color:var(--ink)}
 .ghost{background:#fff;color:var(--ink);padding:7px 14px;border:1px solid #b8cadc}
-#home{width:min(760px,100%);display:flex;flex-direction:column;align-items:center}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;width:100%}
+#home{width:min(1100px,100%);display:flex;flex-direction:column;align-items:center}
+.tiles {display: grid;grid-template-columns: repeat(3, minmax(0, 1fr));gap: 18px;width: 100%;}
 .tile{display:flex;align-items:center;gap:18px;padding:24px;color:var(--ink);text-decoration:none;transition:transform .2s,border-color .2s,background .2s}
 .tile:hover{transform:translateY(-4px);border-color:var(--amber);background:#fff;box-shadow:0 14px 34px rgba(30,70,110,.16)}
 .ico{flex:none;width:56px;height:56px;border-radius:14px;display:grid;place-items:center;color:#04202b;background:linear-gradient(135deg,#6fe3f0,var(--teal))}
@@ -58,7 +58,7 @@ select option{color:#000}select:disabled{opacity:.6}
 .card.wide{width:min(660px,100%)}.pform button{margin-top:6px}.ut{width:100%;border-collapse:collapse}.ut th,.ut td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}.ut th{font-size:12px;color:var(--mut)}.wrap{overflow-x:auto}
 .temp{background:rgba(255,157,46,.12);border:1px solid rgba(255,157,46,.5);padding:12px;border-radius:9px;margin:12px 0}.temp code{font-size:18px;color:var(--amberd);letter-spacing:.05em}
 @media (max-width: 600px) {
-    .mark {
+.mark {
         top: 12px;
         left: 12px;
         width: 115px;
@@ -67,5 +67,26 @@ select option{color:#000}select:disabled{opacity:.6}
 
     .hero {
         padding-top: 100px;
+    }
+}
+/* Tablet layout */
+@media (max-width: 900px) {
+    .tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Mobile layout */
+@media (max-width: 580px) {
+    .tiles {
+        grid-template-columns: 1fr;
+    }
+
+    #home {
+        width: 100%;
+    }
+
+    .tile {
+        padding: 16px;
     }
 }
