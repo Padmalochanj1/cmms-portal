@@ -90,3 +90,28 @@ select option{color:#000}select:disabled{opacity:.6}
         padding: 16px;
     }
 }
+/* User account controls - top right */
+.who {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 8px;
+}
+
+.acct {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 14px;
+}
+@media (max-width: 580px) {
+    .who,
+    .acct {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}
