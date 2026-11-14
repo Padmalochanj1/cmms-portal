@@ -200,3 +200,88 @@ select option{color:#000}select:disabled{opacity:.6}
         right: 12px;
     }
 }
+/* Main header positioning */
+.hero {
+    position: relative;
+    padding-top: 140px;
+}
+
+/* Company logo - top left */
+.mark {
+    position: absolute;
+    top: 20px;
+    left: 25px;
+    width: 160px;
+    height: 90px;
+}
+
+/* Portal title - top centre */
+.hero > h1 {
+    position: absolute;
+    top: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    width: max-content;
+    max-width: calc(100% - 400px);
+    text-align: center;
+    font-size: clamp(20px, 2.2vw, 30px);
+    white-space: nowrap;
+}
+
+/* User information - top right */
+.who {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    width: auto;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    z-index: 5;
+}
+
+/* Account action buttons */
+.acct {
+    position: absolute;
+    top: 58px;
+    right: 25px;
+    width: auto;
+    margin: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    z-index: 5;
+}
+
+/* Mobile and tablet */
+@media (max-width: 850px) {
+    .hero > h1 {
+        top: 105px;
+        max-width: 95%;
+        white-space: normal;
+        width: 95%;
+    }
+
+    .hero {
+        padding-top: 175px;
+    }
+
+    .who {
+        top: 20px;
+        right: 12px;
+    }
+
+    .acct {
+        top: 58px;
+        right: 12px;
+    }
+
+    .mark {
+        left: 12px;
+        width: 110px;
+        height: 65px;
+    }
+}
