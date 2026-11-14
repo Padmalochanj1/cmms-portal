@@ -1,9 +1,32 @@
 :root{--bg1:#f7fafd;--bg2:#e3eef9;--teal:#19b5c9;--amber:#ff9d2e;--amberd:#c96f00;--ink:#12283d;--mut:#4d6781;--line:rgba(18,40,61,.14)}
 *{box-sizing:border-box}[hidden]{display:none!important}
-body{margin:0;min-height:100vh;position:relative;color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,sans-serif;overflow-x:hidden;
- background:radial-gradient(1100px 560px at 82% -8%,#cfe4f7 0,transparent 62%),radial-gradient(900px 480px at 0% 100%,rgba(255,157,46,.16),transparent 60%),linear-gradient(160deg,var(--bg1),var(--bg2))}
+body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    color: var(--ink);
+    font: 16px/1.5 "IBM Plex Sans", system-ui, sans-serif;
+    overflow-x: hidden;
+
+    background:
+        radial-gradient(1100px 560px at 82% -8%, #cfe4f7 0, transparent 62%),
+        radial-gradient(900px 480px at 0% 100%, rgba(255,157,46,.16), transparent 60%),
+        linear-gradient(160deg, var(--bg1), var(--bg2));
+}
 .scene{position:fixed;left:0;bottom:0;width:100%;height:40vh;min-height:230px;pointer-events:none}
-.hero{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:7vh 20px 34vh}
+.hero {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1 0 auto;
+    min-height: 0;
+    padding: 100px 20px 40px;
+}
 .mark {
     position: absolute;
     top: 20px;
@@ -47,7 +70,21 @@ button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:9px;pa
 @media(prefers-reduced-motion:reduce){.smoke,.glow{animation:none}.tile{transition:none}}
 select option{color:#000}select:disabled{opacity:.6}
 .tag{margin:-22px 0 26px;padding:5px 16px;border-radius:999px;font-size:14px;font-weight:600;color:var(--amberd);background:rgba(255,157,46,.14);border:1px solid rgba(217,120,10,.45)}
-.foot{position:absolute;left:0;right:0;bottom:8px;z-index:2;text-align:center;font-size:11px;letter-spacing:.03em;color:rgba(18,40,61,.7);pointer-events:none}
+.foot {
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    z-index: 2;
+    width: 100%;
+    margin-top: auto;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: .03em;
+    color: rgba(18,40,61,.7);
+    pointer-events: none;
+}
 #login{width:min(780px,100%)}
 #lf{display:grid;grid-template-columns:1fr 1fr;gap:0 32px;align-items:start}
 #lf .col+.col{border-left:1px solid var(--line);padding-left:32px}
