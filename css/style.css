@@ -57,3 +57,46 @@ td input,td select{min-width:80px}
 .nform input,.nform select,.nform textarea{display:block;width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--pan);border:1px solid var(--line);border-radius:4px}
 .nform fieldset{border:1px solid var(--line);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px 18px}.nform .pill{display:inline-flex;align-items:center;gap:6px;font-weight:400}.nform .pill input{width:auto;margin:0}
 .dc.noprint+.bar{margin-top:18px}
+
+/* Content-based sizing for data tables */
+.wrap{
+    width:100%;
+    max-width:100%;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+}
+.wrap table{
+    width:max-content;
+    min-width:100%;
+    table-layout:auto;
+}
+.wrap th{
+    white-space:nowrap;
+}
+.wrap td{
+    white-space:normal;
+}
+.wrap td input:not([type="checkbox"]):not([type="radio"]),
+.wrap td select,
+.wrap td textarea{
+    box-sizing:border-box;
+    width:100%;
+    min-width:90px;
+    max-width:260px;
+}
+.wrap td input[data-k="notes"],
+.wrap td input[data-k="rem"]{
+    min-width:150px;
+    max-width:320px;
+}
+@media print{
+    .wrap table{
+        width:100%;
+        min-width:0;
+    }
+    .wrap td input:not([type="checkbox"]):not([type="radio"]),
+    .wrap td select,
+    .wrap td textarea{
+        max-width:none;
+    }
+}
