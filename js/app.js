@@ -65,7 +65,7 @@ V.closing=()=>{const os=L.orders(M,TD);
  $("#view").oninput=timeSaver(os);
  $("#view").onclick=async e=>{const a=e.target.dataset.a,tr=e.target.closest("tr");if(e.target.dataset.print!==undefined)return window.print();if(!a||!tr)return;const o=os[tr.dataset.i];if(a==="chk"){cur=o.no;go("checklist");return}
   const rem=tr.querySelector("[data-r]").value.trim();if(a==="Deferred"&&!rem)return toast("Enter a remark to defer an order.",1);const tm=readTimes(tr,a);if(!tm)return toast("Enter the start time and end time before closing the order.",1);e.target.disabled=true;
-  try{await call("closure",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,freq:o.freq,action:a,on:L.iso(TD),rem,start:tm.start,end:tm.end}});try{localStorage.removeItem(tkey(o.no))}catch(_){}toast(`${o.no} ${a==="Closed"?"closed":"deferred"}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
+  try{const result=await call("closure",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,freq:o.freq,action:a,on:L.iso(TD),rem,start:tm.start,end:tm.end}});try{localStorage.removeItem(tkey(o.no))}catch(_){}toast(result.attentionNotificationPending?`${o.no} closed, but the Attention alert could not be saved. Please retry.`:result.attentionNotification?`${o.no} closed. Automatic Attention notification created.`:`${o.no} ${a==="Closed"?"closed":"deferred"}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
 const res=i=>!i.ok?"":i.ok==="OK"?"PASS":i.notes.trim().length>20?"ATTENTION":"FAIL";
 V.checklist=()=>{const os=L.orders(M,TD),o=os.find(x=>x.no===cur)||(pastOrder&&pastOrder.no===cur?pastOrder:null),done=o&&(ms[o.no]||cl[o.no]||RG.ms[o.no]||RG.cl[o.no]);items=o&&!done?L.items(M,o).map(r=>({r,reading:"",ok:"",notes:""})):[];
@@ -105,7 +105,7 @@ V.report=()=>{if(!RG.done){rload();$("#view").innerHTML=`<p class="empty">Loadin
 V.tomorrow=()=>{const os=L.orders(M,TD+1);
  $("#view").innerHTML=PH("Tomorrow’s maintenance orders, "+L.iso(TD+1).split("-").reverse().join("/"))+PB+`<p class="hint">${os.length} order(s) due on ${L.iso(TD+1).split("-").reverse().join("/")}</p><div class="wrap"><table><thead><tr><th>Sl.</th><th>Order no.</th><th>Equipment</th><th>Type</th><th>Location</th><th>Criticality</th><th>Frequency</th></tr></thead><tbody>${os.map((o,i)=>`<tr><td>${i+1}</td><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}</small></td><td>${esc(o.e.type)}</td><td>${esc(o.e.loc)}</td><td>${esc(o.e.crit)}</td><td>${o.freq}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No orders due tomorrow.</td></tr>`}</tbody></table></div>`};
 
-const KPI={P:"Production",Q:"Quality",C:"Cost",D:"Delivery",S:"Safety",M:"Morale"},NT=["Planned","Breakdown","Improvement"];
+const KPI={P:"Production",Q:"Quality",C:"Cost",D:"Delivery",S:"Safety",M:"Morale"},NT=["Planned","Breakdown","Improvement","Attention"];
 let nm=L.iso(TD).slice(0,7),nl=null,nf={type:"",area:"",q:""};
 async function nload(){try{nl=(await call("notif_list",{month:nm})).list}catch(x){toast(x.message,1);nl=[]}if(route==="notifications")draw()}
 const nfilt=()=>nl.filter(n=>(!nf.type||n.type===nf.type)&&(!nf.area||n.area===nf.area)&&(!nf.q||[n.no,n.title,n.desc,n.eqName,n.eq,n.team].join(" ").toLowerCase().includes(nf.q.toLowerCase()))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
@@ -119,7 +119,7 @@ V.notifications=()=>{if(nl===null){nload();$("#view").innerHTML=`<p class="empty
  <label>Date <input type="date" id="nd" value="${L.iso(TD)}"></label>
  <label>Area <select id="na"><option value="">Select area</option>${areas.map(a=>`<option>${esc(a)}</option>`).join("")}</select></label>
  <label>Equipment <select id="ne"><option value="">Select area first</option></select></label>
- <label>Notification type <select id="nt"><option value="">Select type</option>${NT.map(t=>`<option>${t}</option>`).join("")}</select></label>
+ <label>Notification type <select id="nt"><option value="">Select type</option>${NT.filter(t=>t!=="Attention").map(t=>`<option>${t}</option>`).join("")}</select></label>
  <label class="wide">Heading / title <input id="ntl" maxlength="120"></label>
  <label class="wide">Description <textarea id="nds" rows="4" maxlength="2000"></textarea></label>
  <div id="ndw" class="delay-fields wide" hidden><label>Breakdown duration - Hours <input type="number" id="ndh" min="0" step="1" value="0" inputmode="numeric" placeholder="Hours"></label><label>Minutes <input type="number" id="ndm" min="0" max="59" step="1" value="0" inputmode="numeric" placeholder="00"></label><small>Enter the breakdown duration in hours and minutes (e.g. 2 hours 30 minutes).</small></div>
