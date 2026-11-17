@@ -1,3 +1,4 @@
+
 (()=>{
 const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole;
 if(!T){location.replace("../index.html");return}
@@ -143,7 +144,78 @@ const histBar=()=>`<div class="bar noprint"><label>Date <input type="date" id="h
 A.closure=()=>PH("Closure history, "+hd.split("-").reverse().join("/"))+histBar()+(hist?tbl(["Order no.","Due","EQ ID","Equipment","Frequency","Action","Start time","End time","Duration","Closed on","Closed by","Remarks"],hist.closures.map(c=>`<tr><td class="mono">${c.no}</td><td>${c.due}</td><td>${c.eq}</td><td>${esc(c.name)}</td><td>${c.freq}</td><td>${chip(c.action.toUpperCase())}</td><td>${esc(c.start||"")}</td><td>${esc(c.end||"")}</td><td>${dur(c.start,c.end)}</td><td>${c.on}</td><td>${esc(c.by)}</td><td>${esc(c.rem)}</td></tr>`)):`<p class="empty">Pick a date and click Load.</p>`);
 A.orders=()=>PH("Maintenance order history, "+hd.split("-").reverse().join("/"))+histBar()+(hist?hist.measurements.map(m=>`<details><summary><b class="mono">${m.no}</b> ${esc(m.name)} (${m.freq}), recorded by ${esc(m.by)} on ${m.on}</summary>${tbl(["Check item","Reading","Mandatory","OK / NOT OK","Result","Notes"],m.items.map(i=>`<tr><td>${esc(i.item)}</td><td>${esc(i.reading)} ${esc(i.unit)}</td><td>${i.mand}</td><td>${i.ok}</td><td>${chip(i.result)}</td><td>${esc(i.notes)}</td></tr>`))}</details>`).join("")||`<p class="empty">No records for this date.</p>`:`<p class="empty">Pick a date and click Load.</p>`);
 const sel=(k,i,v,l)=>`<select data-k="${k}" data-i="${i}">${l.map(x=>`<option${x===v?" selected":""}>${esc(x)}</option>`).join("")}</select>`;
-A.equip=()=>`<div class="bar"><button data-add>Add equipment</button><button data-save>Save changes</button><span class="hint">Set an equipment to Inactive instead of deleting it.</span></div>`+tbl(["EQ ID","Name","Type","Location","Status","Criticality","Schedule start","Make / model","Rating","Remarks"],M.equipment.map((e,i)=>`<tr><td class="mono">${esc(e.id)}</td><td><input data-k="name" data-i="${i}" value="${esc(e.name)}"></td><td>${sel("type",i,e.type,["",...M.types])}</td><td>${sel("loc",i,e.loc,["",...Object.keys(M.areas)])}</td><td>${sel("status",i,e.status,["Active","Inactive"])}</td><td>${sel("crit",i,e.crit,["","High","Medium","Low"])}</td><td><input type="date" data-k="start" data-i="${i}" value="${e.start}"></td><td><input data-k="make" data-i="${i}" value="${esc(e.make)}"></td><td><input data-k="rating" data-i="${i}" value="${esc(e.rating)}"></td><td><input data-k="remarks" data-i="${i}" value="${esc(e.remarks)}"></td></tr>`));
+
+/* EQUIPMENT DETAILS WITH AREA AND TYPE FILTERS */
+let eqAreaFilter="",eqTypeFilter="";
+
+A.equip=()=>{
+    const filtered=M.equipment
+        .map((e,i)=>({e,i}))
+        .filter(({e})=>
+            (!eqAreaFilter || e.loc===eqAreaFilter) &&
+            (!eqTypeFilter || e.type===eqTypeFilter)
+        );
+
+    const areaOptions=Object.keys(M.areas)
+        .map(a=>`<option value="${esc(a)}"${a===eqAreaFilter?" selected":""}>${esc(a)}</option>`)
+        .join("");
+
+    const typeOptions=M.types
+        .map(t=>`<option value="${esc(t)}"${t===eqTypeFilter?" selected":""}>${esc(t)}</option>`)
+        .join("");
+
+    const filterLine=`
+        <div class="bar noprint">
+            <label>
+                Area
+                <select id="eqAreaFilter">
+                    <option value=""${eqAreaFilter===""?" selected":""}>All Areas</option>
+                    ${areaOptions}
+                </select>
+            </label>
+            <label>
+                Equipment Type
+                <select id="eqTypeFilter">
+                    <option value=""${eqTypeFilter===""?" selected":""}>All Types</option>
+                    ${typeOptions}
+                </select>
+            </label>
+            <span class="hint">Showing ${filtered.length} of ${M.equipment.length} equipment records</span>
+        </div>
+    `;
+
+    const equipmentRows=filtered.map(({e,i})=>`
+        <tr>
+            <td class="mono">${esc(e.id)}</td>
+            <td><input data-k="name" data-i="${i}" value="${esc(e.name)}"></td>
+            <td>${sel("type",i,e.type,["",...M.types])}</td>
+            <td>${sel("loc",i,e.loc,["",...Object.keys(M.areas)])}</td>
+            <td>${sel("status",i,e.status,["Active","Inactive"])}</td>
+            <td>${sel("crit",i,e.crit,["","High","Medium","Low"])}</td>
+            <td><input type="date" data-k="start" data-i="${i}" value="${esc(e.start||"")}"></td>
+            <td><input data-k="make" data-i="${i}" value="${esc(e.make)}"></td>
+            <td><input data-k="rating" data-i="${i}" value="${esc(e.rating)}"></td>
+            <td><input data-k="remarks" data-i="${i}" value="${esc(e.remarks)}"></td>
+        </tr>
+    `);
+
+    return `
+        <div class="bar">
+            <button data-add>Add equipment</button>
+            <button data-save>Save changes</button>
+            <span class="hint">Set an equipment to Inactive instead of deleting it.</span>
+        </div>
+        ${filterLine}
+    ` + (
+        equipmentRows.length
+            ? tbl(
+                ["EQ ID","Name","Type","Location","Status","Criticality","Schedule start","Make / model","Rating","Remarks"],
+                equipmentRows
+            )
+            : `<p class="empty">No equipment matches the selected filters.</p>`
+    );
+};
+
 const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 A.sched=()=>`<div class="bar"><button data-save>Save changes</button><span class="hint">Weekly and longer maintenance for all equipment at a location falls on its assigned day. Changing a day moves the next due dates, so save before using the closing pages.</span></div>
 <h3>Assigned day for each location</h3>`+tbl(["Location","Assigned day"],Object.keys(M.areas).map(a=>`<tr><td>${esc(a)}</td><td><select data-area="${esc(a)}">${DAYS.map((d,i)=>`<option value="${i+1}"${+M.areas[a]===i+1?" selected":""}>${d}</option>`).join("")}</select></td></tr>`))+
@@ -157,12 +229,81 @@ A.checklist=()=>{const rows=M.library.map((r,i)=>[r,i]).filter(([r])=>(!ct||r.ty
 V.admin=()=>{if(R!=="admin"){$("#view").textContent="Admin access only.";return}
  const show=()=>{$("#view").innerHTML=`<div class="subtabs">${[["closure","Closure history"],["orders","Maintenance order history"],["equip","Equipment details"],["sched","Maintenance scheduling"],["checklist","Checklist items"]].map(([k,n])=>`<button class="ghost${sub===k?" on":""}" data-s="${k}">${n}</button>`).join("")}</div>${A[sub]()}`};show();
  $("#view").oninput=e=>{const d=e.target.dataset;if(d.lk!==undefined){M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value};
- $("#view").onchange=e=>{const d=e.target.dataset;if(e.target.id==="ct"||e.target.id==="cf"){if(e.target.id==="ct")ct=e.target.value;else cf=e.target.value;show();return}if(d.lk!==undefined){M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;return}if(d.area!==undefined){M.areas[d.area]=+e.target.value;return}if(d.t){(M.ticks[d.t]=M.ticks[d.t]||Array(7).fill(0))[d.f]=e.target.checked?1:0;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value;if(e.target.id==="hd")hd=e.target.value};
+ $("#view").onchange=e=>{
+    const d=e.target.dataset;
+
+    // Equipment list filters
+    if(e.target.id==="eqAreaFilter" || e.target.id==="eqTypeFilter"){
+        if(e.target.id==="eqAreaFilter") eqAreaFilter=e.target.value;
+        else eqTypeFilter=e.target.value;
+        show();
+        return;
+    }
+
+    // Checklist filters
+    if(e.target.id==="ct" || e.target.id==="cf"){
+        if(e.target.id==="ct") ct=e.target.value;
+        else cf=e.target.value;
+        show();
+        return;
+    }
+
+    // Checklist item editing
+    if(d.lk!==undefined){
+        M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;
+        return;
+    }
+
+    // Maintenance scheduling
+    if(d.area!==undefined){
+        M.areas[d.area]=+e.target.value;
+        return;
+    }
+
+    if(d.t){
+        (M.ticks[d.t]=M.ticks[d.t]||Array(7).fill(0))[d.f]=e.target.checked?1:0;
+        return;
+    }
+
+    // Equipment record editing
+    if(d.k && d.i!==undefined){
+        M.equipment[d.i][d.k]=e.target.value;
+
+        // Refresh filtered rows if the Area or Type of an equipment changes
+        if(sub==="equip" && (d.k==="type" || d.k==="loc")){
+            show();
+        }
+    }
+
+    if(e.target.id==="hd") hd=e.target.value;
+};
  $("#view").onclick=async e=>{const d=e.target.dataset;
   if(d.print!==undefined)window.print();
   else if(d.s){sub=d.s;show()}
   else if(d.load!==undefined){try{hist=await call("history",{date:hd});show()}catch(x){toast(x.message,1)}}
-  else if(d.add!==undefined){const l=M.equipment[M.equipment.length-1]?.id||"EQ-0000",m=/^(.*?)(\d+)$/.exec(l);M.equipment.push({id:m[1]+String(+m[2]+1).padStart(m[2].length,"0"),name:"",type:"",loc:"",make:"",rating:"",install:"",status:"Active",remarks:"",crit:"",start:""});show()}
+  else if(d.add!==undefined){
+            // Clear filters so the newly added equipment is visible
+            eqAreaFilter="";
+            eqTypeFilter="";
+
+            const l=M.equipment[M.equipment.length-1]?.id||"EQ-0000";
+            const m=/^(.*?)(\d+)$/.exec(l);
+
+            M.equipment.push({
+                id:m[1]+String(+m[2]+1).padStart(m[2].length,"0"),
+                name:"",
+                type:"",
+                loc:"",
+                make:"",
+                rating:"",
+                install:"",
+                status:"Active",
+                remarks:"",
+                crit:"",
+                start:""
+            });
+            show();
+        }
   else if(d.addchk!==undefined){if(!ct||!cf)return toast("Select an equipment type and a frequency first.",1);
    const pre=ct.slice(0,4).toUpperCase().replace(/[^A-Z]/g,"")+"-"+cf.slice(0,3).toUpperCase()+"-",nums=M.library.filter(r=>r.id.startsWith(pre)).map(r=>+r.id.slice(pre.length)||0),seqs=M.library.filter(r=>r.type===ct&&r.freq===cf).map(r=>+r.seq||0);
    M.library.push({id:pre+String(Math.max(0,...nums)+1).padStart(2,"0"),type:ct,freq:cf,seq:Math.max(0,...seqs)+1,item:"",readReq:"No",unit:"",criteria:"",mand:"Yes",active:"Yes",ref:""});show()}
