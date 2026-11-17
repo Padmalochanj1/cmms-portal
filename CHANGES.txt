@@ -1,0 +1,7 @@
+Files to replace in your repo (same folders):
+  css/landing.css   One clean copy of the styles (your layout kept); account buttons no longer cover the title or logo on phones and tablets.
+  js/pwa.js         Fixes service worker registration on pages/ (was looking for pages/sw.js) and restores the Install notice on phones.
+  pages/ops.html    Adds the manifest link, theme colour and pwa.js that the other pages already have.
+  pages/app.html    Uses icons/favicon-32.png as the browser tab icon.
+  index.html        Uses icons/favicon-32.png as the browser tab icon.
+  sw.js             Also saves icons/logo.png and the favicon for offline use; new cache name so phones refresh.
