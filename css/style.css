@@ -53,7 +53,7 @@ td input,td select{min-width:80px}
 }
 
 .PLANNED{color:var(--pri)}.BREAKDOWN{color:var(--bad)}.IMPROVEMENT{color:var(--ok)}.KPIC{color:var(--pri);padding:1px 7px}
-.nform{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.nform label,.nform fieldset{font-weight:500;font-size:14px}.nform .wide{grid-column:1/-1}
+.nform{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.delay-fields{display:grid;grid-template-columns:repeat(2,minmax(140px,1fr));gap:12px 16px;align-items:end}.delay-fields small{grid-column:1/-1;color:var(--mut)}.nform label,.nform fieldset{font-weight:500;font-size:14px}.nform .wide{grid-column:1/-1}
 .nform input,.nform select,.nform textarea{display:block;width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--pan);border:1px solid var(--line);border-radius:4px}
 .nform fieldset{border:1px solid var(--line);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px 18px}.nform .pill{display:inline-flex;align-items:center;gap:6px;font-weight:400}.nform .pill input{width:auto;margin:0}
 .dc.noprint+.bar{margin-top:18px}
