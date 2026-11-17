@@ -109,8 +109,10 @@ const KPI={P:"Production",Q:"Quality",C:"Cost",D:"Delivery",S:"Safety",M:"Morale
 let nm=L.iso(TD).slice(0,7),nl=null,nf={type:"",area:"",q:""};
 async function nload(){try{nl=(await call("notif_list",{month:nm})).list}catch(x){toast(x.message,1);nl=[]}if(route==="notifications")draw()}
 const nfilt=()=>nl.filter(n=>(!nf.type||n.type===nf.type)&&(!nf.area||n.area===nf.area)&&(!nf.q||[n.no,n.title,n.desc,n.eqName,n.eq,n.team].join(" ").toLowerCase().includes(nf.q.toLowerCase()))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
-const nrows=()=>{const f=nfilt(),dl=f.reduce((a,n)=>a+(n.delay||0),0);
- return`<p class="hint">${f.length} notification(s)${f.some(n=>n.type==="Breakdown")?` | Total breakdown delay: ${dl} min (${(dl/60).toFixed(1)} h)`:""}</p>`+tbl(["Notification no.","Date","Type","Area","Equipment","Title and description","Delay","KPIs","Team members","Logged by"],f.map(n=>`<tr><td class="mono">${esc(n.no||"")}</td><td class="mono">${n.date.split("-").reverse().join("/")}</td><td>${chip(n.type.toUpperCase())}</td><td>${esc(n.area)}</td><td>${esc(n.eqName)}<small>${esc(n.eq)}</small></td><td><b>${esc(n.title)}</b><br>${esc(n.desc)}</td><td>${n.type==="Breakdown"?n.delay+" min":""}</td><td>${(n.kpis||[]).map(k=>`<span class="chip KPIC" title="${KPI[k]}">${k}</span>`).join(" ")}</td><td>${esc(n.team)}</td><td>${esc(n.by)}</td></tr>`))};
+const delayParts=n=>{const total=Number(n.delay||0);return{h:Number.isFinite(Number(n.delayHours))?Number(n.delayHours):Math.floor(total/60),m:Number.isFinite(Number(n.delayMinutes))?Number(n.delayMinutes):total%60}};
+const delayText=n=>{const d=delayParts(n);return`${d.h} h ${String(d.m).padStart(2,"0")} min`};
+const nrows=()=>{const f=nfilt(),dl=f.reduce((a,n)=>a+Number(n.delayHours??Math.floor(Number(n.delay||0)/60))*60+Number(n.delayMinutes??(Number(n.delay||0)%60)),0),dh=Math.floor(dl/60),dm=dl%60;
+ return`<p class="hint">${f.length} notification(s)${f.some(n=>n.type==="Breakdown")?` | Total breakdown delay: ${dh} h ${String(dm).padStart(2,"0")} min`:""}</p>`+tbl(["Notification no.","Date","Type","Area","Equipment","Title and description","Delay (h : min)","KPIs","Team members","Logged by"],f.map(n=>`<tr><td class="mono">${esc(n.no||"")}</td><td class="mono">${n.date.split("-").reverse().join("/")}</td><td>${chip(n.type.toUpperCase())}</td><td>${esc(n.area)}</td><td>${esc(n.eqName)}<small>${esc(n.eq)}</small></td><td><b>${esc(n.title)}</b><br>${esc(n.desc)}</td><td>${n.type==="Breakdown"?delayText(n):""}</td><td>${(n.kpis||[]).map(k=>`<span class="chip KPIC" title="${KPI[k]}">${k}</span>`).join(" ")}</td><td>${esc(n.team)}</td><td>${esc(n.by)}</td></tr>`))};
 V.notifications=()=>{if(nl===null){nload();$("#view").innerHTML=`<p class="empty">Loading notifications...</p>`;return}
  const areas=Object.keys(M.areas),v=$("#view");
  v.innerHTML=PH("Notifications, "+nm.split("-").reverse().join("/"))+`<section class="dc noprint" style="--c:#2f7fd1"><h3>Log a notification</h3><div class="nform">
@@ -120,7 +122,7 @@ V.notifications=()=>{if(nl===null){nload();$("#view").innerHTML=`<p class="empty
  <label>Notification type <select id="nt"><option value="">Select type</option>${NT.map(t=>`<option>${t}</option>`).join("")}</select></label>
  <label class="wide">Heading / title <input id="ntl" maxlength="120"></label>
  <label class="wide">Description <textarea id="nds" rows="4" maxlength="2000"></textarea></label>
- <label id="ndw" hidden>Delay time (minutes) <input type="number" id="ndl" min="0" step="1"></label>
+ <div id="ndw" class="delay-fields wide" hidden><label>Breakdown duration - Hours <input type="number" id="ndh" min="0" step="1" value="0" inputmode="numeric" placeholder="Hours"></label><label>Minutes <input type="number" id="ndm" min="0" max="59" step="1" value="0" inputmode="numeric" placeholder="00"></label><small>Enter the breakdown duration in hours and minutes (e.g. 2 hours 30 minutes).</small></div>
  <fieldset id="nkw" class="wide" hidden><legend>KPIs affected</legend>${Object.entries(KPI).map(([k,n])=>`<label class="pill"><input type="checkbox" value="${k}"> ${k} - ${n}</label>`).join("")}</fieldset>
  <label class="wide">Team members <input id="ntm" maxlength="300" placeholder="Names separated by commas"></label></div>
  <div class="bar"><button id="nsave">Save notification</button></div></section>
@@ -134,9 +136,10 @@ V.notifications=()=>{if(nl===null){nload();$("#view").innerHTML=`<p class="empty
  v.onclick=async e=>{if(e.target.dataset.print!==undefined)return window.print();if(e.target.id!=="nsave")return;
   const g=i=>$("#"+i).value.trim(),type=g("nt"),eq=M.equipment.find(x=>x.id===g("ne")),kp=[...v.querySelectorAll("#nkw input:checked")].map(x=>x.value);
   if(!g("na")||!eq||!type||!g("ntl")||!g("nds"))return toast("Select area, equipment and type, and enter a title and description.",1);
-  if(type==="Breakdown"&&g("ndl")==="")return toast("Enter the delay time in minutes.",1);
+  const delayHours=type==="Breakdown"?Number(g("ndh")):0,delayMinutes=type==="Breakdown"?Number(g("ndm")):0;
+   if(type==="Breakdown"&&(g("ndh")===""||g("ndm")===""||!Number.isInteger(delayHours)||delayHours<0||!Number.isInteger(delayMinutes)||delayMinutes<0||delayMinutes>59))return toast("Enter valid breakdown hours and minutes (minutes must be 0-59).",1);
   if(type==="Improvement"&&!kp.length)return toast("Select at least one KPI.",1);
-  e.target.disabled=true;try{const r=await call("notif_add",{rec:{date:g("nd"),area:g("na"),eq:eq.id,eqName:eq.name,type,title:g("ntl"),desc:g("nds"),delay:g("ndl"),kpis:kp,team:g("ntm")}});
+  e.target.disabled=true;try{const r=await call("notif_add",{rec:{date:g("nd"),area:g("na"),eq:eq.id,eqName:eq.name,type,title:g("ntl"),desc:g("nds"),delayHours,delayMinutes,delay:delayHours*60+delayMinutes,kpis:kp,team:g("ntm")}});
    toast(`Notification ${r.no} saved.`);nm=g("nd").slice(0,7);nl=null;V.notifications()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
 const tbl=(h,rows)=>`<div class="wrap"><table><thead><tr>${h.map(x=>`<th>${x}</th>`).join("")}</tr></thead><tbody>${rows.join("")||`<tr><td colspan="${h.length}" class="empty">No records.</td></tr>`}</tbody></table></div>`;
