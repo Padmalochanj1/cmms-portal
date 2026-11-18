@@ -7,7 +7,7 @@ const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications"].includes(r[0])):ALL).concat(R==="admin"?[["admin","Admin"]]:[]);
+const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications"].includes(r[0])):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
@@ -229,11 +229,59 @@ A.checklist=()=>{const rows=M.library.map((r,i)=>[r,i]).filter(([r])=>(!ct||r.ty
  return`<div class="bar"><label>Equipment type <select id="ct"><option value="">All</option>${M.types.map(t=>`<option${t===ct?" selected":""}>${esc(t)}</option>`).join("")}</select></label><label>Frequency <select id="cf"><option value="">All</option>${M.settings.freqs.map(f=>`<option${f===cf?" selected":""}>${f}</option>`).join("")}</select></label><button data-addchk>Add item</button><button data-save>Save changes</button></div>
  <p class="hint">Choose an equipment type and a frequency to add an item to that checklist. Set Active to No to hide an item without deleting it. Changes apply to new checklists only.</p>`+
  tbl(["ID","Seq.","Check item","Reading required","Unit","Acceptance criteria","Mandatory","Active",""],rows.map(([r,i])=>`<tr><td class="mono">${esc(r.id)}<small>${esc(r.type)}, ${esc(r.freq)}</small></td><td><input type="number" style="width:60px" data-lk="seq" data-li="${i}" value="${r.seq}"></td><td><input data-lk="item" data-li="${i}" value="${esc(r.item)}"></td><td>${yn("readReq",i,r.readReq)}</td><td><input style="width:70px" data-lk="unit" data-li="${i}" value="${esc(r.unit)}"></td><td><input data-lk="criteria" data-li="${i}" value="${esc(r.criteria)}"></td><td>${yn("mand",i,r.mand)}</td><td>${yn("active",i,r.active)}</td><td><button class="ghost" data-delchk="${i}">Delete</button></td></tr>`))};
-V.admin=()=>{if(R!=="admin"){$("#view").textContent="Admin access only.";return}
- const show=()=>{$("#view").innerHTML=`<div class="subtabs">${[["closure","Closure history"],["orders","Maintenance order history"],["equip","Equipment details"],["sched","Maintenance scheduling"],["checklist","Checklist items"]].map(([k,n])=>`<button class="ghost${sub===k?" on":""}" data-s="${k}">${n}</button>`).join("")}</div>${A[sub]()}`};show();
+
+/* COMPLIANCE: weekly, monthly and yearly (January to December) */
+const CFROM=()=>M.settings.complianceFrom||"2026-11-01";
+let cmp={tab:"weekly",date:L.iso(TD-1),month:L.iso(TD-1).slice(0,7),year:+L.iso(TD).slice(0,4)},CPC={},CD={key:"",rows:null,parts:{},err:"",done:false},cpRun=0,adminShow=null;
+const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],DS=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+const cpClip=(a,b)=>{const lo=Math.max(a,L.dn(CFROM())),hi=Math.min(b,TD-1);return lo<=hi?[lo,hi]:null};
+async function cpClosures(a,b){const r=cpClip(a,b);if(!r)return[];const from=L.iso(r[0]),to=L.iso(r[1]),k=from+"|"+to,h=CPC[k];if(h&&Date.now()-h.t<3e5)return h.l;const d=await call("compliance_range",{from,to});CPC[k]={t:Date.now(),l:d.closures};return d.closures}
+const cpRows=(a,b,cls)=>{const r=cpClip(a,b);if(!r)return[];const ix={};cls.forEach(c=>ix[c.no]=c);const out=[];for(let t=r[0];t<=r[1];t++)L.orders(M,t).forEach(o=>{const c=ix[o.no];out.push({o,t,s:!c?"pending":c.action==="Deferred"?"deferred":c.on<=L.iso(t)?"ontime":"late"})});return out};
+const cpKey=()=>cmp.tab==="weekly"?"w"+cmp.date:cmp.tab==="monthly"?"m"+cmp.month:"y"+cmp.year;
+const weekOf=d=>{const t=L.dn(d),m=t-(L.wd(t)-1);return[m,m+6]};
+const monthOf=m=>{const y=+m.slice(0,4),mo=+m.slice(5);return[Date.UTC(y,mo-1,1)/864e5,Date.UTC(y,mo,1)/864e5-1]};
+async function cpLoad(){const key=cpKey(),run=++cpRun;CD={key,rows:null,parts:{},err:"",done:false};
+ try{if(cmp.tab==="weekly"){const[a,b]=weekOf(cmp.date);CD.rows=cpRows(a,b,await cpClosures(a,b))}
+  else if(cmp.tab==="monthly"){const[a,b]=monthOf(cmp.month);CD.rows=cpRows(a,b,await cpClosures(a,b))}
+  else{for(let m=1;m<=12;m++){const a=Date.UTC(cmp.year,m-1,1)/864e5,b=Date.UTC(cmp.year,m,1)/864e5-1;const rs=cpRows(a,b,await cpClosures(a,b));if(run!==cpRun)return;CD.parts[m]=rs;if(m<12)adminShow&&adminShow()}CD.rows=[].concat(...[...Array(12)].map((_,i)=>CD.parts[i+1]||[]))}}
+ catch(x){if(run===cpRun)CD.err=x.message}
+ if(run===cpRun){CD.done=true;adminShow&&adminShow()}}
+function cpStart(){if(CD.key!==cpKey())cpLoad()}
+const cpSum=rs=>{const n=k=>rs.filter(r=>r.s===k).length,t=rs.length,on=n("ontime"),la=n("late"),de=n("deferred"),pe=n("pending");return{t,on,la,de,pe,pct:t?Math.round(on/t*1000)/10:null,done:t?Math.round((on+la)/t*1000)/10:null}};
+const cpPc=p=>p==null?"—":`<b style="color:${p>=95?COL.green:p>=80?COL.amber:COL.red}">${p}%</b>`;
+const cpRow=(l,rs)=>{const s=cpSum(rs);return`<tr><td>${l}</td><td>${s.t}</td><td>${s.on}</td><td>${s.la}</td><td>${s.de}</td><td>${s.pe}</td><td>${cpPc(s.pct)}</td><td>${cpPc(s.done)}</td></tr>`};
+const CPH=["Orders due","Closed on time","Closed late","Deferred","Pending","Compliance (on time)","Completion (closed)"];
+const cpTbl=(first,rows)=>tbl([first,...CPH],rows);
+const cpGroup=(rs,f)=>[...new Set(rs.map(f).map(x=>x||"Not set"))].sort().map(k=>cpRow(esc(k),rs.filter(r=>(f(r)||"Not set")===k)));
+function cpBody(){
+ const rs=CD.rows||[],s=cpSum(rs),kp=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
+ let title,buckets,chart="";
+ if(cmp.tab==="weekly"){const[a,b]=weekOf(cmp.date);title=`Weekly compliance, ${dmy(L.iso(a))} to ${dmy(L.iso(b))}`;buckets=[...Array(7)].map((_,i)=>cpRow(`${DS[i]} ${dmy(L.iso(a+i)).slice(0,5)}`,rs.filter(r=>r.t===a+i)))}
+ else if(cmp.tab==="monthly"){const[a,b]=monthOf(cmp.month);title=`Monthly compliance, ${MON[+cmp.month.slice(5)-1]} ${cmp.month.slice(0,4)}`;buckets=[];let t=a,n=1;while(t<=b){const e=Math.min(b,t+(7-L.wd(t)));buckets.push(cpRow(`Week ${n} (${L.iso(t).slice(8)}-${L.iso(e).slice(8)})`,rs.filter(r=>r.t>=t&&r.t<=e)));t=e+1;n++}}
+ else{title=`Yearly compliance, January to December ${cmp.year}`;const pm=[...Array(12)].map((_,i)=>CD.parts[i+1]);buckets=pm.map((p,i)=>p?cpRow(MON[i],p):`<tr><td>${MON[i]}</td><td colspan="7" class="empty">${CD.err?"":"Loading..."}</td></tr>`);
+  chart=card("Compliance by month (on time)",`<div class="cols">${pm.map((p,i)=>{const v=p?cpSum(p).pct:null;return`<div><em>${v==null?"—":v+"%"}</em><i style="height:${Math.max(3,(v||0)*1.3)}px;background:${v==null?COL.slate:v>=95?COL.green:v>=80?COL.amber:COL.red}"></i><span>${MON[i]}</span></div>`}).join("")}</div>`,COL.blue)}
+ return PH(title)+`<div class="kpis">${kp(s.t,"Orders due",COL.blue)}${kp(s.on,"Closed on time",COL.green)}${kp(s.la,"Closed late",COL.violet)}${kp(s.de,"Deferred",COL.amber)}${kp(s.pe,"Pending",COL.red)}${kp(s.pct==null?"—":s.pct+"%","Compliance",s.pct==null||s.pct>=95?COL.green:s.pct>=80?COL.amber:COL.red)}</div>`+chart+
+ `<h3 style="margin-top:18px">${cmp.tab==="weekly"?"Day by day":cmp.tab==="monthly"?"Week by week":"Month by month"}</h3>`+cpTbl(cmp.tab==="weekly"?"Day":cmp.tab==="monthly"?"Week":"Month",buckets)+
+ `<h3 style="margin-top:18px">By location</h3>`+cpTbl("Location",cpGroup(rs,r=>r.o.e.loc))+`<h3 style="margin-top:18px">By frequency</h3>`+cpTbl("Frequency",M.settings.freqs.filter(f=>rs.some(r=>r.o.freq===f)).map(f=>cpRow(f,rs.filter(r=>r.o.freq===f))))+
+ `<p class="hint">Compliance = orders closed on or before their due date, divided by all orders due. Completion also counts orders closed late. Deferred and pending orders count as not complied. Only dates from ${dmy(CFROM())} up to yesterday are assessed, and orders are taken from the current schedule.</p>`}
+A.compliance=()=>{const tabs=[["weekly","Weekly"],["monthly","Monthly"],["yearly","Yearly"]],yrs=[...Array(6)].map((_,i)=>+L.iso(TD).slice(0,4)-i).filter(y=>y>=2026||y===cmp.year);
+ const pick=cmp.tab==="weekly"?`<label>Week containing <input type="date" id="cpd" value="${cmp.date}"></label>`:cmp.tab==="monthly"?`<label>Month <input type="month" id="cpm" value="${cmp.month}"></label>`:`<label>Year <select id="cpy">${[...new Set([...yrs,cmp.year])].sort((a,b)=>b-a).map(y=>`<option${y===cmp.year?" selected":""}>${y}</option>`).join("")}</select></label>`;
+ return`<div class="subtabs">${tabs.map(([k,n])=>`<button class="ghost${cmp.tab===k?" on":""}" data-ct="${k}">${n}</button>`).join("")}</div>
+ <div class="bar noprint"><button class="ghost" data-cpn="-1">&lt; Previous</button>${pick}<button class="ghost" data-cpn="1">Next &gt;</button><button class="ghost" data-cpreload>Reload</button><button class="ghost" data-print>Print</button></div>
+ <div class="bar noprint"><label>Count compliance from <input type="date" id="cpf" value="${CFROM()}"${R==="admin"?"":" disabled"}></label>${R==="admin"?`<button data-cpsave>Save start date</button>`:""}<span class="hint">Orders before this date are not counted (set it to the day the portal went live).</span></div>`+
+ (CD.key!==cpKey()||(!CD.done&&cmp.tab!=="yearly")?`<p class="empty">Loading compliance...</p>`:CD.err?`<p class="empty">Could not load: ${esc(CD.err)}</p>`:cpBody())};
+
+V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access only.";return}
+ if(R!=="admin"&&sub==="sched")sub="closure";
+ const show=adminShow=()=>{const v0=$("#view");v0.innerHTML=`<div class="subtabs">${[["closure","Closure history"],["orders","Maintenance order history"],["equip","Equipment details"],["sched","Maintenance scheduling"],["checklist","Checklist items"],["compliance","Compliance"]].filter(([k])=>R==="admin"||k!=="sched").map(([k,n])=>`<button class="ghost${sub===k?" on":""}" data-s="${k}">${n}</button>`).join("")}</div>${R!=="admin"?`<p class="hint noprint">View only.</p>`:""}${A[sub]()}`;
+  if(R!=="admin"){v0.querySelectorAll("[data-k],[data-lk],[data-area],[data-t]").forEach(x=>x.disabled=true);v0.querySelectorAll("[data-add],[data-save],[data-addchk],[data-delchk],[data-cpsave]").forEach(x=>{const bar=x.parentElement;x.remove();bar&&bar.querySelectorAll(".hint").forEach(h=>h.remove())});if(sub==="equip"||sub==="checklist")v0.querySelectorAll(":scope > p.hint:not(.noprint)").forEach(h=>h.remove())}
+  if(sub==="compliance")cpStart()};show();
  $("#view").oninput=e=>{const d=e.target.dataset;if(d.lk!==undefined){M.library[d.li][d.lk]=d.lk==="seq"?+e.target.value:e.target.value;return}if(d.k&&d.i!==undefined)M.equipment[d.i][d.k]=e.target.value};
  $("#view").onchange=e=>{
     const d=e.target.dataset;
+    if(e.target.id==="cpd"||e.target.id==="cpm"||e.target.id==="cpy"){if(e.target.value){if(e.target.id==="cpd")cmp.date=e.target.value;else if(e.target.id==="cpm")cmp.month=e.target.value;else cmp.year=+e.target.value;show()}return}
+    if(e.target.id==="cpf"){if(R==="admin"&&e.target.value)M.settings.complianceFrom=e.target.value;return}
+    if(R!=="admin"&&(d.k!==undefined||d.lk!==undefined||d.area!==undefined||d.t!==undefined))return;
 
     // Equipment list filters
     if(e.target.id==="eqAreaFilter" || e.target.id==="eqTypeFilter"){
@@ -281,7 +329,12 @@ V.admin=()=>{if(R!=="admin"){$("#view").textContent="Admin access only.";return}
     if(e.target.id==="hd") hd=e.target.value;
 };
  $("#view").onclick=async e=>{const d=e.target.dataset;
+  if(R!=="admin"&&(d.add!==undefined||d.save!==undefined||d.addchk!==undefined||d.delchk!==undefined||d.cpsave!==undefined))return;
   if(d.print!==undefined)window.print();
+  else if(d.ct){cmp.tab=d.ct;show()}
+  else if(d.cpn){const n=+d.cpn;if(cmp.tab==="weekly")cmp.date=L.iso(L.dn(cmp.date)+7*n);else if(cmp.tab==="monthly"){const y=+cmp.month.slice(0,4),m=+cmp.month.slice(5)-1+n,t=new Date(Date.UTC(y,m,1));cmp.month=t.toISOString().slice(0,7)}else cmp.year+=n;show()}
+  else if(d.cpreload!==undefined){CPC={};CD.key="";show()}
+  else if(d.cpsave!==undefined){e.target.disabled=true;try{await call("master",{master:M});toast("Compliance start date saved.");CD.key="";show()}catch(x){toast(x.message,1)}e.target.disabled=false}
   else if(d.s){sub=d.s;show()}
   else if(d.load!==undefined){try{hist=await call("history",{date:hd});show()}catch(x){toast(x.message,1)}}
   else if(d.add!==undefined){
