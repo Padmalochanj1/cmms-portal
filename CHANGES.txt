@@ -1,7 +1,21 @@
-Files to replace in your repo (same folders):
-  css/landing.css   One clean copy of the styles (your layout kept); account buttons no longer cover the title or logo on phones and tablets.
-  js/pwa.js         Fixes service worker registration on pages/ (was looking for pages/sw.js) and restores the Install notice on phones.
-  pages/ops.html    Adds the manifest link, theme colour and pwa.js that the other pages already have.
-  pages/app.html    Uses icons/favicon-32.png as the browser tab icon.
-  index.html        Uses icons/favicon-32.png as the browser tab icon.
-  sw.js             Also saves icons/logo.png and the favicon for offline use; new cache name so phones refresh.
+Version of 18.11.2026 (2) - Deferred orders rescheduled, Create order tab, Attention creates an order
+(Includes the earlier changes: Management access to Admin and the Compliance tab.)
+
+Files to replace:
+  js/app.js          All screens.
+  sw.js              New cache name so phones and browsers load the new app.js.
+  server/worker.js   PASTE THIS INTO CLOUDFLARE (Workers > your worker > Edit code > Deploy). Version 2.8.
+
+1. Deferring an order now needs a NEW DATE ("Defer to" column in Order closing and Closure report).
+   The deferred order stays on its own date as DEFERRED. A new order (same number + -R1, -R2 ...) appears on the
+   new date, with the same checklist rules as the original. It can be deferred again.
+2. New tab "Create order" for every role: an additional maintenance order for any equipment and due date,
+   without a checklist. It is closed directly in Order closing on its due date.
+3. When a checklist is closed with Attention items, the portal now also creates a corrective order
+   (number ACT-<order number>) due on the closing date, without a checklist, to be closed in Order closing.
+   Orders closed with Attention BEFORE this update do not get one.
+
+All three kinds are stored in the data repo in extras/YYYY-MM.json (created automatically).
+They also appear on the Dashboard, Tomorrow's orders and Closure report, marked Rescheduled, Additional or
+Attention action. In Compliance they are listed in a separate table and are NOT part of the percentage.
+The deferred original still counts as not complied.
