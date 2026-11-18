@@ -19,3 +19,5 @@ All three kinds are stored in the data repo in extras/YYYY-MM.json (created auto
 They also appear on the Dashboard, Tomorrow's orders and Closure report, marked Rescheduled, Additional or
 Attention action. In Compliance they are listed in a separate table and are NOT part of the percentage.
 The deferred original still counts as not complied.
+
+Update (3): index.html now has a "Create order" tile (all roles, E&I). Replace index.html and sw.js too.
