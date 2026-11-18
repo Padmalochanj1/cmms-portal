@@ -20,4 +20,12 @@ They also appear on the Dashboard, Tomorrow's orders and Closure report, marked 
 Attention action. In Compliance they are listed in a separate table and are NOT part of the percentage.
 The deferred original still counts as not complied.
 
-Update (3): index.html now has a "Create order" tile (all roles, E&I). Replace index.html and sw.js too.
+Update (3): index.html has a "Create order" tile (all roles, E&I).
+Update (4): User profiles (E&I sections only)
+  Files: index.html, css/landing.css, js/landing.js, js/app.js, sw.js, server/worker.js (version 2.9, deploy in Cloudflare).
+  - Click the user name on the index page to open My profile: Name, Emp. Code, User Type, Department, Function,
+    with Change password below it. Only the administrator can edit details, in "Edit user profiles" at the bottom.
+  - Inside the app the header and greeting show the person's Name (their username if no name is set), and
+    "Closed by" / "Logged by" also show names. The user type is no longer shown in the app.
+  - User Type comes from the access level (Administrator, User, Management) and is read-only.
+  - Details are stored in profiles.json in the data repo (created on first save). Operation sections are unchanged.

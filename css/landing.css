@@ -56,3 +56,7 @@ select option{color:#000}select:disabled{opacity:.6}
 .smoke{animation:drift 9s ease-in-out infinite alternate}.glow{animation:pulse 3.2s ease-in-out infinite alternate}
 @keyframes drift{to{transform:translate(18px,-22px)}}@keyframes pulse{from{opacity:.55}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.smoke,.glow{animation:none}.tile{transition:none}}
+
+.whoLink{color:var(--ink);text-decoration:underline dotted;cursor:pointer}.whoLink:hover{color:var(--amberd)}
+.pdet{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;margin:0 0 6px}.pdet dt{color:var(--mut);font-size:13px;padding-top:2px}.pdet dd{margin:0;font-weight:600;min-height:1.2em;word-break:break-word}
+#profBox,#pwBox,#profAdm{margin-bottom:18px}#profAdm{width:min(1000px,100%)}#profAdm .ut input{margin:0;padding:6px 8px;min-width:110px}#profAdm .ut button{padding:6px 12px}

@@ -40,7 +40,7 @@
   </form>
  </section>
  <section id="home" hidden>
-  <p class="who">Signed in as <b id="who"></b> <button id="out" class="ghost">Sign out</button></p>
+  <p class="who">Signed in as <b><a href="#" id="who" class="whoLink" title="Open my profile"></a></b> <button id="out" class="ghost">Sign out</button></p>
   <p class="acct"><button id="cpw" class="ghost">Change password</button> <button id="admBtn" class="ghost" hidden>Reset a user’s password</button></p>
   <p id="flash" class="okmsg" role="status"></p>
   <div class="tiles">
@@ -59,9 +59,14 @@
   <a class="tile glass" data-sec="ei" href="pages/app.html#admin" data-admin hidden><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg></span><div><b>Admin</b><span>History, equipment and scheduling</span></div><i>→</i></a>
   </div>
  </section>
+<section id="profBox" class="card glass" hidden><h2>My profile</h2>
+ <dl class="pdet"><dt>Name</dt><dd id="pfName"></dd><dt>Emp. Code</dt><dd id="pfEmp"></dd><dt>User Type</dt><dd id="pfType"></dd><dt>Department</dt><dd id="pfDept"></dd><dt>Function</dt><dd id="pfFunc"></dd><dt>Username</dt><dd id="pfUser"></dd></dl>
+ <p id="pfErr" class="bad" role="alert"></p><button type="button" id="profBack" class="ghost">Back</button></section>
 <section id="pwBox" class="card glass" hidden><h2>Change password</h2><p id="pwNote" class="fnote"></p>
  <form id="pf" class="pform"><label>Current password <input id="po" type="password" autocomplete="current-password" required></label><label>New password <input id="pn" type="password" autocomplete="new-password" required minlength="8"></label><label>Confirm new password <input id="pc" type="password" autocomplete="new-password" required></label>
  <p class="fnote">At least 8 characters, with a letter and a number.</p><button id="pgo">Save new password</button> <button type="button" id="pcancel" class="ghost">Cancel</button><p id="perr" class="bad" role="alert"></p></form></section>
+<section id="profAdm" class="card glass wide" hidden><h2>Edit user profiles</h2><p class="fnote">Only the administrator can change these details. User Type comes from the user’s access level and is shown for information.</p>
+ <div class="wrap"><table class="ut"><thead><tr><th>Username</th><th>User Type</th><th>Name</th><th>Emp. Code</th><th>Department</th><th>Function</th><th></th></tr></thead><tbody id="pul"></tbody></table></div><p id="paerr" class="bad" role="alert"></p></section>
 <section id="admBox" class="card glass wide" hidden><h2>Reset a user’s password</h2><p class="fnote">Choose Reset to create a temporary password for a user. They must change it when they next sign in.</p>
  <div class="wrap"><table class="ut"><thead><tr><th>User</th><th>Role</th><th>Password status</th><th></th></tr></thead><tbody id="ul"></tbody></table></div><div id="temp" class="temp" hidden></div><p id="aerr" class="bad" role="alert"></p><button type="button" id="acancel" class="ghost">Back</button></section>
 </main>
