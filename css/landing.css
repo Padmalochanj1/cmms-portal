@@ -60,3 +60,4 @@ select option{color:#000}select:disabled{opacity:.6}
 .whoLink{color:var(--ink);text-decoration:underline dotted;cursor:pointer}.whoLink:hover{color:var(--amberd)}
 .pdet{display:grid;grid-template-columns:120px 1fr;gap:10px 14px;margin:0 0 6px}.pdet dt{color:var(--mut);font-size:13px;padding-top:2px}.pdet dd{margin:0;font-weight:600;min-height:1.2em;word-break:break-word}
 #profBox,#pwBox,#profAdm{margin-bottom:18px}#profAdm{width:min(1000px,100%)}#profAdm .ut input{margin:0;padding:6px 8px;min-width:110px}#profAdm .ut button{padding:6px 12px}
+.pact{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}.pact button{margin:0}

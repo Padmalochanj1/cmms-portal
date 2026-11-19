@@ -1,4 +1,4 @@
-(()=>{let panel="";const C=window.CMMS_CONFIG,P=window.CMMS_PLANTS,$=s=>document.querySelector(s),e=s=>String(s).replace(/&/g,"&amp;");
+(()=>{let panel="",sub="";const C=window.CMMS_CONFIG,P=window.CMMS_PLANTS,$=s=>document.querySelector(s),e=s=>String(s).replace(/&/g,"&amp;");
 const cur=()=>{const p=P.find(x=>x.id===$("#pl").value)||P[0];return[p,p.sections.find(x=>x.id===$("#sc").value)||p.sections[0]]};
 const label=()=>{const[p,s]=cur();return p.name+" "+s.name};
 const title=()=>{document.title="Plant Management Portal"};
@@ -7,7 +7,7 @@ const secs=()=>{const p=P.find(x=>x.id===$("#pl").value)||P[0],ok=p.sections.fil
  $("#sc").value=(ok.find(s=>s.id===localStorage.cmmsSection)||ok[0]).id;title(label())};
 $("#pl").innerHTML=P.map(p=>`<option value="${p.id}">${e(p.name)}</option>`).join("");$("#pl").value=localStorage.cmmsPlant||P[0].id;if(!$("#pl").value)$("#pl").value=P[0].id;secs();
 $("#pl").onchange=()=>{localStorage.cmmsPlant=$("#pl").value;secs()};$("#sc").onchange=()=>{localStorage.cmmsSection=$("#sc").value;title(label())};
-const show=()=>{const u=sessionStorage.cmmsUser;$("#login").hidden=!!u;const must=u&&sessionStorage.cmmsMust==="1";$("#home").hidden=!u||!!panel||!!must;$("#profBox").hidden=!(u&&panel==="prof"&&!must);$("#profAdm").hidden=!(u&&panel==="prof"&&sessionStorage.cmmsRole==="admin"&&!must);$("#pwBox").hidden=!(u&&(panel==="pw"||panel==="prof"||must));$("#admBox").hidden=!(u&&panel==="adm"&&!must);$("#admBtn").hidden=sessionStorage.cmmsRole!=="admin";$("#pcancel").hidden=!!must;$("#pwNote").textContent=must?"Your password was reset by the administrator. Please choose a new password to continue.":"";
+const show=()=>{const u=sessionStorage.cmmsUser;$("#login").hidden=!!u;const must=u&&sessionStorage.cmmsMust==="1";$("#home").hidden=!u||!!panel||!!must;const pr=u&&panel==="prof"&&!must,adm=sessionStorage.cmmsRole==="admin";$("#profBox").hidden=!pr;$("#profAdm").hidden=!(pr&&adm&&sessionStorage.cmmsSection!=="ops");$("#pwBox").hidden=!(u&&(must||(pr&&sub==="pw")));$("#admBox").hidden=!(pr&&adm&&sub==="adm");$("#admBtn").hidden=sessionStorage.cmmsRole!=="admin";$("#pcancel").hidden=!!must;$("#pwNote").textContent=must?"Your password was reset by the administrator. Please choose a new password to continue.":"";
  $("#unitTag").hidden=!u;if(u){$("#who").textContent=sessionStorage.cmmsName||u;$("#unitTag").textContent=sessionStorage.cmmsUnit}title();
  document.querySelectorAll("[data-sec]").forEach(a=>{const role=sessionStorage.cmmsRole;a.hidden=a.dataset.sec!==(sessionStorage.cmmsSection||"ei")||(a.dataset.roles&&!a.dataset.roles.split(",").includes(role))||(a.hasAttribute("data-admin")&&role!=="admin")})};
 $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err").textContent="";
@@ -20,32 +20,33 @@ $("#lf").onsubmit=async ev=>{ev.preventDefault();$("#go").disabled=true;$("#err"
   sessionStorage.cmmsToken=j.token;sessionStorage.cmmsUser=j.user;sessionStorage.cmmsRole=j.role;sessionStorage.cmmsUnit=j.unit;sessionStorage.cmmsName=j.name||"";sessionStorage.cmmsMust=j.mustChange?"1":"";sessionStorage.cmmsSection=$("#sc").value;$("#p").value="";show()}
  catch(x){$("#err").textContent=x.message}
  $("#go").disabled=false};
-$("#out").onclick=()=>{sessionStorage.clear();panel="";show()};
+$("#out").onclick=()=>{sessionStorage.clear();panel="";sub="";show()};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const flash=m=>{$("#flash").textContent=m;setTimeout(()=>$("#flash").textContent="",5000)};
 const api=async(a,b)=>{let r,j;try{r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:sessionStorage.cmmsToken,action:a,...b})})}catch(_){throw new Error("Cannot reach the server.")}
  try{j=await r.json()}catch(_){throw new Error("The server sent an unexpected reply.")}
- if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();panel="";show()}throw new Error(j.error)}return j};
+ if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();panel="";sub="";show()}throw new Error(j.error)}return j};
 $("#forgot").onclick=ev=>{ev.preventDefault();$("#fnote").hidden=!$("#fnote").hidden};
 const TYPE={admin:"Administrator",user:"User",mgmt:"Management",entry:"Data Entry"};
 const rowOf=u=>`<tr data-u="${esc(u.username)}"><td>${esc(u.username)}</td><td>${esc(TYPE[u.role]||u.role)}</td><td><input data-f="name" maxlength="60" value="${esc(u.profile.name||"")}"></td><td><input data-f="empCode" maxlength="20" value="${esc(u.profile.empCode||"")}"></td><td><input data-f="department" maxlength="60" value="${esc(u.profile.department||"")}"></td><td><input data-f="function" maxlength="60" value="${esc(u.profile.function||"")}"></td><td><button class="ghost" data-save>Save</button></td></tr>`;
-const openProfile=async()=>{panel="prof";$("#perr").textContent="";$("#pf").reset();$("#pfErr").textContent="";$("#paerr").textContent="";show();
+const openProfile=async()=>{panel="prof";sub="";$("#perr").textContent="";$("#pf").reset();$("#pfErr").textContent="";$("#paerr").textContent="";$("#paok").textContent="";$("#temp").hidden=true;show();
+ const ops=sessionStorage.cmmsSection==="ops";document.querySelectorAll(".pe").forEach(x=>x.hidden=ops);$("#pfType").textContent=TYPE[sessionStorage.cmmsRole]||sessionStorage.cmmsRole||"";$("#pfUser").textContent=sessionStorage.cmmsUser||"";if(ops)return;
  try{const j=await api("profile_get"),p=j.profile||{};sessionStorage.cmmsName=p.name||"";$("#pfName").textContent=p.name||"";$("#pfEmp").textContent=p.empCode||"";$("#pfType").textContent=TYPE[j.role]||j.role;$("#pfDept").textContent=p.department||"";$("#pfFunc").textContent=p.function||"";$("#pfUser").textContent=j.user;$("#who").textContent=p.name||j.user;
   if(j.users)$("#pul").innerHTML=j.users.map(rowOf).join("")}catch(x){$("#pfErr").textContent=x.message}};
-$("#who").onclick=ev=>{ev.preventDefault();if(sessionStorage.cmmsSection!=="ops")openProfile()};
+$("#who").onclick=ev=>{ev.preventDefault();openProfile()};
 $("#profBack").onclick=()=>{panel="";show()};
 $("#pul").onclick=async ev=>{if(ev.target.dataset.save===undefined)return;const tr=ev.target.closest("tr"),prof={};tr.querySelectorAll("[data-f]").forEach(i=>prof[i.dataset.f]=i.value);$("#paerr").textContent="";ev.target.disabled=true;
- try{await api("profile_save",{username:tr.dataset.u,profile:prof});flash("Profile saved for "+tr.dataset.u+".");if(tr.dataset.u===sessionStorage.cmmsUser){await openProfile()}}catch(x){$("#paerr").textContent=x.message}ev.target.disabled=false};
-$("#cpw").onclick=()=>{if(sessionStorage.cmmsSection==="ops"){panel="pw";$("#perr").textContent="";$("#pf").reset();show()}else openProfile()};
-$("#pcancel").onclick=()=>{panel="";show()};
+ try{await api("profile_save",{username:tr.dataset.u,profile:prof});$("#paok").textContent="Profile saved for "+tr.dataset.u+".";if(tr.dataset.u===sessionStorage.cmmsUser){await openProfile()}}catch(x){$("#paerr").textContent=x.message}ev.target.disabled=false};
+$("#cpw").onclick=()=>{sub=sub==="pw"?"":"pw";$("#perr").textContent="";$("#pf").reset();show()};
+$("#pcancel").onclick=()=>{sub="";show()};
 $("#pf").onsubmit=async ev=>{ev.preventDefault();$("#perr").textContent="";
  if($("#pn").value!==$("#pc").value){$("#perr").textContent="The new password and its confirmation do not match.";return}
  $("#pgo").disabled=true;
- try{const j=await api("change_password",{oldPassword:$("#po").value,newPassword:$("#pn").value});sessionStorage.cmmsToken=j.token;sessionStorage.cmmsMust="";panel="";$("#pf").reset();show();flash("Password changed.")}
+ try{const j=await api("change_password",{oldPassword:$("#po").value,newPassword:$("#pn").value});sessionStorage.cmmsToken=j.token;sessionStorage.cmmsMust="";panel="";sub="";$("#pf").reset();show();flash("Password changed.")}
  catch(x){$("#perr").textContent=x.message}$("#pgo").disabled=false};
 const ulist=async()=>{try{const j=await api("admin_users");$("#ul").innerHTML=j.users.map(u=>`<tr><td>${esc(u.username)}</td><td>${esc(u.role)}</td><td>${u.mustChange?"Temporary password, must change":u.custom?"Own password":"Initial password"}</td><td><button class="ghost" data-u="${esc(u.username)}">Reset</button></td></tr>`).join("")}catch(x){$("#aerr").textContent=x.message}};
-$("#admBtn").onclick=()=>{panel="adm";$("#aerr").textContent="";$("#temp").hidden=true;show();ulist()};
-$("#acancel").onclick=()=>{panel="";show()};
+$("#admBtn").onclick=()=>{if(sub==="adm"){sub="";show();return}sub="adm";$("#aerr").textContent="";$("#temp").hidden=true;show();ulist()};
+$("#acancel").onclick=()=>{sub="";show()};
 $("#ul").onclick=async ev=>{const u=ev.target.dataset.u;if(!u||!confirm(`Reset the password for ${u}? A new temporary password will be created.`))return;$("#aerr").textContent="";
  try{const j=await api("admin_reset_password",{username:u});$("#temp").hidden=false;$("#temp").innerHTML=`Temporary password for <b>${esc(j.username)}</b>: <code>${esc(j.temp)}</code><br><small>Give it to the user. It is shown only once. They must choose a new password when they sign in.</small>`;ulist()}catch(x){$("#aerr").textContent=x.message}};
 show()})();

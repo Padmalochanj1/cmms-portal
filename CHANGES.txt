@@ -29,3 +29,20 @@ Update (4): User profiles (E&I sections only)
     "Closed by" / "Logged by" also show names. The user type is no longer shown in the app.
   - User Type comes from the access level (Administrator, User, Management) and is read-only.
   - Details are stored in profiles.json in the data repo (created on first save). Operation sections are unchanged.
+
+Update (5): MTTR / MTBF
+  Files: index.html, js/app.js, sw.js, server/worker.js (version 3.0, deploy in Cloudflare).
+  - New tab "MTTR / MTBF" (all roles, view only) and a tile on the index page. Monthly and Yearly (Jan to Dec) views.
+  - Failures come from: Breakdown notifications (default, repair time = breakdown hours and minutes),
+    and optionally Attention-action orders and Additional orders (repair time = closing End time - Start time).
+  - MTTR = total repair time / failures. MTBF = (operating time - repair time) / failures.
+    Operating time = "Operating hours per day" (default 24) x days of the period up to today, for each equipment that failed.
+  - Shown overall, by area and by equipment, with availability. Equipment with no failure are not listed.
+
+Update (6): Password buttons moved into the profile page
+  Files: index.html, css/landing.css, js/landing.js, sw.js (no Worker change).
+  - "Change password" and "Reset a user's password" are removed from the index page. Click your name to open
+    the profile page: the buttons are there. The change-password form and the reset list stay closed until
+    the button is pressed (press again or Cancel/Close to hide).
+  - The forced "choose a new password" screen after an administrator reset is unchanged.
+  - Operation sections have a short profile page (User Type, Username and the two buttons).

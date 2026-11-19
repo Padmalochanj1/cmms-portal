@@ -7,7 +7,7 @@ const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder"].includes(r[0])):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
+let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"],["reliability","MTTR / MTBF"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder","reliability"].includes(r[0])):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
@@ -292,6 +292,47 @@ A.compliance=()=>{const tabs=[["weekly","Weekly"],["monthly","Monthly"],["yearly
  <div class="bar noprint"><button class="ghost" data-cpn="-1">&lt; Previous</button>${pick}<button class="ghost" data-cpn="1">Next &gt;</button><button class="ghost" data-cpreload>Reload</button><button class="ghost" data-print>Print</button></div>
  <div class="bar noprint"><label>Count compliance from <input type="date" id="cpf" value="${CFROM()}"${R==="admin"?"":" disabled"}></label>${R==="admin"?`<button data-cpsave>Save start date</button>`:""}<span class="hint">Orders before this date are not counted (set it to the day the portal went live).</span></div>`+
  (CD.key!==cpKey()||(!CD.done&&cmp.tab!=="yearly")?`<p class="empty">Loading compliance...</p>`:CD.err?`<p class="empty">Could not load: ${esc(CD.err)}</p>`:cpBody())};
+
+
+/* RELIABILITY: MTTR and MTBF from Breakdown notifications and corrective orders */
+let rel={tab:"monthly",month:L.iso(TD).slice(0,7),year:+L.iso(TD).slice(0,4),hpd:24,src:{ntf:true,att:false,add:false}},RC={},RD={key:"",parts:{},err:"",done:false},relRun=0;
+const relKey=()=>rel.tab==="monthly"?"m"+rel.month:"y"+rel.year;
+const relMonths=()=>rel.tab==="monthly"?[rel.month]:[...Array(12)].map((_,i)=>rel.year+"-"+String(i+1).padStart(2,"0"));
+async function relFetch(a,b){const hi=Math.min(b,TD);if(a>hi)return{breakdowns:[],orders:[]};const from=L.iso(a),to=L.iso(hi),k=from+"|"+to,h=RC[k];if(h&&Date.now()-h.t<3e5)return h.d;const d=await call("reliability_range",{from,to});RC[k]={t:Date.now(),d};return d}
+async function relLoad(){const key=relKey(),run=++relRun,ms=relMonths();RD={key,parts:{},err:"",done:false};
+ try{for(const m of ms){const[a,b]=monthOf(m);const d=await relFetch(a,b);if(run!==relRun)return;RD.parts[m]=d;if(ms.length>1&&m!==ms[11]&&route==="reliability")V.reliability()}}
+ catch(x){if(run===relRun)RD.err=x.message}
+ if(run===relRun){RD.done=true;if(route==="reliability")V.reliability()}}
+const RSRC={ntf:"Breakdown notification",att:"Attention action order",add:"Additional order"};
+function relEvents(parts){const ev=[];let excl=0;Object.entries(parts).forEach(([m,p])=>{
+ if(rel.src.ntf)(p.breakdowns||[]).forEach(x=>ev.push({m,eq:x.eq,name:x.name,area:x.area||"Not set",mins:x.mins}));
+ (p.orders||[]).forEach(o=>{if(!rel.src[o.kind==="attention"?"att":"add"])return;if(o.state==="closed"&&o.mins!=null)ev.push({m,eq:o.eq,name:o.name,area:o.area||"Not set",mins:o.mins});else excl++})});return{ev,excl}}
+const relDays=m=>{const[a,b]=monthOf(m);return Math.max(0,Math.min(b,TD)-a+1)};
+function relStats(ev,days){const by={};ev.forEach(e=>{const r=by[e.eq]||(by[e.eq]={eq:e.eq,name:e.name,area:e.area,n:0,mins:0});r.n++;r.mins+=e.mins});
+ const T=days*rel.hpd*60,rows=Object.values(by).map(r=>({...r,mttr:r.mins/r.n,mtbf:Math.max(0,T-r.mins)/r.n,av:T?Math.max(0,T-r.mins)/T*100:null})).sort((a,b)=>b.n-a.n||b.mins-a.mins);
+ const N=rows.reduce((a,r)=>a+r.n,0),D=rows.reduce((a,r)=>a+r.mins,0),A=rows.length;
+ return{rows,N,D,A,T,mttr:N?D/N:null,mtbf:N?Math.max(0,A*T-D)/N:null,av:A&&T?Math.max(0,A*T-D)/(A*T)*100:null}}
+const fh=(m,d=1)=>m==null?"—":(m/60).toFixed(d),fp=p=>p==null?"—":p.toFixed(1)+"%";
+const relRow=(l,st)=>`<tr><td>${l}</td><td>${st.N}</td><td>${fh(st.D,2)}</td><td>${fh(st.mttr,2)}</td><td>${fh(st.mtbf)}</td><td>${fp(st.av)}</td></tr>`;
+function relBody(){const ms=Object.keys(RD.parts).sort(),{ev,excl}=relEvents(RD.parts),days=ms.reduce((a,m)=>a+relDays(m),0),st=relStats(ev,days),kp=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
+ const title=rel.tab==="monthly"?`MTTR and MTBF, ${MON[+rel.month.slice(5)-1]} ${rel.month.slice(0,4)}`:`MTTR and MTBF, January to December ${rel.year}`;
+ const H=["Failures","Downtime (h)","MTTR (h)","MTBF (h)","Availability"];
+ let h=PH(title)+`<div class="kpis">${kp(st.N,"Failures",COL.red)}${kp(st.A,"Equipment affected",COL.amber)}${kp(fh(st.D,2),"Downtime (h)",COL.violet)}${kp(fh(st.mttr,2),"MTTR (h)",COL.blue)}${kp(fh(st.mtbf),"MTBF (h)",COL.green)}${kp(fp(st.av),"Availability",COL.green)}</div>`;
+ if(rel.tab==="yearly")h+=`<h3 style="margin-top:18px">Month by month</h3>`+tbl(["Month",...H],[...Array(12)].map((_,i)=>{const m=rel.year+"-"+String(i+1).padStart(2,"0"),d=relDays(m);return RD.parts[m]?relRow(MON[i],relStats(ev.filter(e=>e.m===m),d)):`<tr><td>${MON[i]}</td><td colspan="5" class="empty">${RD.err?"":d?"Loading...":"—"}</td></tr>`}));
+ const ar=[...new Set(ev.map(e=>e.area))].sort();
+ h+=`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area",...H],ar.map(a=>relRow(esc(a),relStats(ev.filter(e=>e.area===a),days))))+
+ `<h3 style="margin-top:18px">By equipment</h3>`+tbl(["Equipment","Area",...H],st.rows.map(r=>`<tr><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`))+
+ `<p class="hint">MTTR = total repair time / number of failures. MTBF = (operating time - repair time) / number of failures, where operating time is ${rel.hpd} hour(s) a day for every day of the period up to today, counted for each equipment that failed. Availability = (operating time - repair time) / operating time. Equipment with no failure in the period are not listed. Sources used: ${Object.keys(rel.src).filter(k=>rel.src[k]).map(k=>RSRC[k]).join(", ")||"none selected"}. Repair time of a notification is its breakdown time; repair time of an order is its closing End time minus Start time.${excl?` ${excl} selected order(s) were left out because they are not closed or have no start and end time.`:""}${rel.src.ntf&&(rel.src.att||rel.src.add)?" A breakdown that has both a notification and an order is counted twice.":""}</p>`;
+ return h}
+V.reliability=()=>{const v=$("#view");if(RD.key!==relKey())relLoad();
+ const pick=rel.tab==="monthly"?`<label>Month <input type="month" id="rmo" value="${rel.month}"></label>`:`<label>Year <select id="ryr">${[...new Set([...Array(6)].map((_,i)=>+L.iso(TD).slice(0,4)-i).filter(y=>y>=2026).concat(rel.year))].sort((a,b)=>b-a).map(y=>`<option${y===rel.year?" selected":""}>${y}</option>`).join("")}</select></label>`;
+ const ck=(k)=>`<label class="chk"><input type="checkbox" data-rs="${k}"${rel.src[k]?" checked":""}> ${RSRC[k]}s</label>`;
+ v.innerHTML=`<div class="subtabs noprint">${[["monthly","Monthly"],["yearly","Yearly"]].map(([k,n])=>`<button class="ghost${rel.tab===k?" on":""}" data-rt="${k}">${n}</button>`).join("")}</div>
+ <div class="bar noprint"><button class="ghost" data-rn="-1">&lt; Previous</button>${pick}<button class="ghost" data-rn="1">Next &gt;</button><label>Operating hours per day <input type="number" id="rhpd" min="1" max="24" step="1" value="${rel.hpd}" style="width:80px"></label><button class="ghost" data-rreload>Reload</button><button class="ghost" data-print>Print</button></div>
+ <div class="bar noprint"><span class="hint">Failures from:</span>${ck("ntf")}${ck("att")}${ck("add")}</div>`+
+ (RD.err?`<p class="empty">Could not load: ${esc(RD.err)}</p>`:rel.tab==="monthly"&&!RD.done?`<p class="empty">Loading...</p>`:relBody());
+ v.onclick=e=>{const d=e.target.dataset;if(d.rt){rel.tab=d.rt;V.reliability()}else if(d.rn){const n=+d.rn;if(rel.tab==="monthly"){const y=+rel.month.slice(0,4),m=+rel.month.slice(5)-1+n;rel.month=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7)}else rel.year+=n;V.reliability()}else if(d.rreload!==undefined){RC={};RD.key="";V.reliability()}else if(d.print!==undefined)window.print()};
+ v.onchange=e=>{const t=e.target;if(t.id==="rmo"&&t.value)rel.month=t.value;else if(t.id==="ryr")rel.year=+t.value;else if(t.id==="rhpd")rel.hpd=Math.min(24,Math.max(1,Math.round(+t.value)||24));else if(t.dataset.rs)rel.src[t.dataset.rs]=t.checked;else return;V.reliability()}};
 
 V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access only.";return}
  if(R!=="admin"&&sub==="sched")sub="closure";
