@@ -52,7 +52,7 @@ td input,td select{min-width:80px}
  .chip{border:1px solid #000;color:#000!important}details{border:0}details>summary{font-weight:600;margin-top:8px}
 }
 
-.PLANNED{color:var(--pri)}.BREAKDOWN{color:var(--bad)}.IMPROVEMENT{color:var(--ok)}.KPIC{color:var(--pri);padding:1px 7px}
+.PLANNED{color:var(--pri)}.BREAKDOWN{color:var(--bad)}.IMPROVEMENT{color:var(--ok)}.INTERRUPTION{color:#8a4fd1}.KPIC{color:var(--pri);padding:1px 7px}
 .nform{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 16px}.delay-fields{display:grid;grid-template-columns:150px 130px;gap:10px 12px;align-items:end;width:max-content;max-width:100%}.delay-fields label{width:150px}.delay-fields input{width:100%;max-width:120px}.delay-fields small{grid-column:1/-1;color:var(--mut)}@media(max-width:420px){.delay-fields{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.delay-fields label{width:auto}.delay-fields input{max-width:100%}}.nform label,.nform fieldset{font-weight:500;font-size:14px}.nform .wide{grid-column:1/-1}
 .nform input,.nform select,.nform textarea{display:block;width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--pan);border:1px solid var(--line);border-radius:4px}
 .nform fieldset{border:1px solid var(--line);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px 18px}.nform .pill{display:inline-flex;align-items:center;gap:6px;font-weight:400}.nform .pill input{width:auto;margin:0}

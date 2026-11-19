@@ -14,13 +14,13 @@ async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;EX=d.extras||[];NAMES=d.names||{};NM=NAMES[U]||U;sessionStorage.cmmsName=NAMES[U]||"";cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
  $("#sub").textContent=`${NM}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
-const KL={resched:"Rescheduled",additional:"Additional",attention:"Attention action"};
+const KL={resched:"Rescheduled",additional:"Additional",attention:"Attention action"},OTYPES={PM:"Preventive Maintenance",CM:"Corrective Maintenance",IM:"Inspection / Lubrication / Compliance",OM:"Overhauling / Refurbishment"};
 const toOrder=x=>({no:x.no,e:M.equipment.find(e=>e.id===x.eq)||{id:x.eq,name:x.name,type:x.type||"",loc:x.loc||"",crit:x.crit||""},ix:-1,fi:-1,freq:x.freq,due:L.dn(x.due),extra:x});
 const ordersOn=t=>L.orders(M,t).concat(EX.filter(x=>x.due===L.iso(t)).map(toOrder));
 const st=o=>{const c=cl[o.no]||RG.cl[o.no];return c?c.action.toUpperCase():(ms[o.no]||RG.ms[o.no])?"READY TO CLOSE":o.extra&&!o.extra.chk?"OPEN":L.items(M,o).length?"OPEN":"NO CHECKLIST"};
 const cc=(o,s)=>s==="READY TO CLOSE"||(!!o.extra&&!o.extra.chk&&s==="OPEN");
 const ckBtn=o=>o.extra&&!o.extra.chk?"":`<button class="link" data-a="chk">Checklist</button> `;
-const xinfo=o=>o.extra?`<small><b>${KL[o.extra.kind]||"Extra"}</b>${o.extra.title?": "+esc(o.extra.title):""}${o.extra.src?" (from "+esc(o.extra.src)+")":""}</small>`:"";
+const xinfo=o=>o.extra?`<small><b>${KL[o.extra.kind]||"Extra"}${o.extra.otype?" ("+o.extra.otype+")":""}</b>${o.extra.title?": "+esc(o.extra.title):""}${o.extra.src?" (from "+esc(o.extra.src)+")":""}</small>`:"";
 const PH=t=>`<div class="phead"><b>${esc(UN)} Maintenance Management Portal</b><span>${t}</span><small>Printed ${new Date().toLocaleString("en-GB")} by ${esc(NM)}</small></div>`;
 const PB=`<div class="bar noprint"><button class="ghost" data-print>Print</button></div>`;
 window.onbeforeprint=()=>document.querySelectorAll("details").forEach(d=>d.open=true);
@@ -111,7 +111,7 @@ V.report=()=>{if(!RG.done){rload();$("#view").innerHTML=`<p class="empty">Loadin
 V.tomorrow=()=>{const os=ordersOn(TD+1);
  $("#view").innerHTML=PH("Tomorrow’s maintenance orders, "+L.iso(TD+1).split("-").reverse().join("/"))+PB+`<p class="hint">${os.length} order(s) due on ${L.iso(TD+1).split("-").reverse().join("/")}</p><div class="wrap"><table><thead><tr><th>Sl.</th><th>Order no.</th><th>Equipment</th><th>Type</th><th>Location</th><th>Criticality</th><th>Frequency</th></tr></thead><tbody>${os.map((o,i)=>`<tr><td>${i+1}</td><td class="mono">${o.no}</td><td>${esc(o.e.name)}<small>${o.e.id}</small>${xinfo(o)}</td><td>${esc(o.e.type)}</td><td>${esc(o.e.loc)}</td><td>${esc(o.e.crit)}</td><td>${o.freq}</td></tr>`).join("")||`<tr><td colspan="7" class="empty">No orders due tomorrow.</td></tr>`}</tbody></table></div>`};
 
-const KPI={P:"Production",Q:"Quality",C:"Cost",D:"Delivery",S:"Safety",M:"Morale"},NT=["Planned","Breakdown","Improvement","Attention"];
+const KPI={P:"Production",Q:"Quality",C:"Cost",D:"Delivery",S:"Safety",M:"Morale"},NT=["Planned","Breakdown","Improvement","Interruption","Attention"];
 let nm=L.iso(TD).slice(0,7),nl=null,nf={type:"",area:"",q:""};
 async function nload(){try{nl=(await call("notif_list",{month:nm})).list}catch(x){toast(x.message,1);nl=[]}if(route==="notifications")draw()}
 const nfilt=()=>nl.filter(n=>(!nf.type||n.type===nf.type)&&(!nf.area||n.area===nf.area)&&(!nf.q||[n.no,n.title,n.desc,n.eqName,n.eq,n.team].join(" ").toLowerCase().includes(nf.q.toLowerCase()))).sort((a,b)=>String(b.at).localeCompare(String(a.at)));
@@ -239,17 +239,18 @@ A.checklist=()=>{const rows=M.library.map((r,i)=>[r,i]).filter(([r])=>(!ct||r.ty
 
 V.neworder=()=>{const v=$("#view"),ex=EX.filter(x=>x.kind==="additional").sort((a,b)=>b.due.localeCompare(a.due)||String(b.at).localeCompare(String(a.at)));
  v.innerHTML=`<section class="dc noprint" style="--c:#2f7fd1"><h3>Create an additional maintenance order</h3><p class="hint">For work outside the schedule. The order has no checklist. It appears in Order closing on its due date and is closed there.</p><div class="nform">
+ <label>Type of order <select id="oty"><option value="">Select type</option>${Object.entries(OTYPES).map(([k,n])=>`<option value="${k}">${k} - ${n}</option>`).join("")}</select></label>
  <label>Due date <input type="date" id="od" min="${L.iso(TD)}" value="${L.iso(TD)}"></label>
  <label>Area <select id="oa"><option value="">Select area</option>${Object.keys(M.areas).map(a=>`<option>${esc(a)}</option>`).join("")}</select></label>
  <label>Equipment <select id="oe"><option value="">Select area first</option></select></label>
  <label class="wide">Job title <input id="ot" maxlength="120"></label>
  <label class="wide">Description <textarea id="odsc" rows="3" maxlength="2000"></textarea></label></div>
  <div class="bar"><button id="osave">Create order</button></div></section>
- <h3 style="margin-top:18px">Additional orders, recent and upcoming</h3>`+tbl(["Order no.","Due date","Equipment","Location","Job","Created by"],ex.map(x=>`<tr><td class="mono">${esc(x.no)}</td><td>${dmy(x.due)}</td><td>${esc(x.name)}<small>${esc(x.eq)}</small></td><td>${esc(x.loc)}</td><td><b>${esc(x.title)}</b><br>${esc(x.desc||"")}</td><td>${esc(bn(x.by))}</td></tr>`));
+ <h3 style="margin-top:18px">Additional orders, recent and upcoming</h3>`+tbl(["Order no.","Type","Due date","Equipment","Location","Job","Created by"],ex.map(x=>`<tr><td class="mono">${esc(x.no)}</td><td>${x.otype?esc(x.otype)+" - "+esc(OTYPES[x.otype]||""):""}</td><td>${dmy(x.due)}</td><td>${esc(x.name)}<small>${esc(x.eq)}</small></td><td>${esc(x.loc)}</td><td><b>${esc(x.title)}</b><br>${esc(x.desc||"")}</td><td>${esc(bn(x.by))}</td></tr>`));
  v.onchange=e=>{if(e.target.id==="oa")$("#oe").innerHTML=e.target.value?`<option value="">Select equipment</option>`+M.equipment.filter(x=>x.loc===e.target.value&&x.status!=="Inactive").map(x=>`<option value="${esc(x.id)}">${esc(x.id)} - ${esc(x.name)}</option>`).join(""):`<option value="">Select area first</option>`};
  v.onclick=async e=>{if(e.target.id!=="osave")return;const g=i=>$("#"+i).value.trim();
-  if(!g("od")||g("od")<L.iso(TD))return toast("Select a due date from today onwards.",1);if(!g("oe")||!g("ot"))return toast("Select the area and equipment, and enter a job title.",1);
-  e.target.disabled=true;try{const r=await call("order_add",{rec:{due:g("od"),eq:g("oe"),title:g("ot"),desc:g("odsc")}});toast(`Order ${r.no} created for ${dmy(g("od"))}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
+  if(!g("od")||g("od")<L.iso(TD))return toast("Select a due date from today onwards.",1);if(!g("oty"))return toast("Select the type of order.",1);if(!g("oe")||!g("ot"))return toast("Select the area and equipment, and enter a job title.",1);
+  e.target.disabled=true;try{const r=await call("order_add",{rec:{otype:g("oty"),due:g("od"),eq:g("oe"),title:g("ot"),desc:g("odsc")}});toast(`Order ${r.no} created for ${dmy(g("od"))}.`);await load()}catch(x){toast(x.message,1);e.target.disabled=false}}};
 
 /* COMPLIANCE: weekly, monthly and yearly (January to December) */
 const CFROM=()=>M.settings.complianceFrom||"2026-11-01";
@@ -303,10 +304,10 @@ async function relLoad(){const key=relKey(),run=++relRun,ms=relMonths();RD={key,
  try{for(const m of ms){const[a,b]=monthOf(m);const d=await relFetch(a,b);if(run!==relRun)return;RD.parts[m]=d;if(ms.length>1&&m!==ms[11]&&route==="reliability")V.reliability()}}
  catch(x){if(run===relRun)RD.err=x.message}
  if(run===relRun){RD.done=true;if(route==="reliability")V.reliability()}}
-const RSRC={ntf:"Breakdown notification",att:"Attention action order",add:"Additional order"};
+const RSRC={ntf:"Breakdown notification",att:"Attention action order",add:"Corrective (CM) order"};
 function relEvents(parts){const ev=[];let excl=0;Object.entries(parts).forEach(([m,p])=>{
  if(rel.src.ntf)(p.breakdowns||[]).forEach(x=>ev.push({m,eq:x.eq,name:x.name,area:x.area||"Not set",mins:x.mins}));
- (p.orders||[]).forEach(o=>{if(!rel.src[o.kind==="attention"?"att":"add"])return;if(o.state==="closed"&&o.mins!=null)ev.push({m,eq:o.eq,name:o.name,area:o.area||"Not set",mins:o.mins});else excl++})});return{ev,excl}}
+ (p.orders||[]).forEach(o=>{if(!rel.src[o.kind==="attention"?"att":"add"]||(o.kind==="additional"&&o.otype!=="CM"))return;if(o.state==="closed"&&o.mins!=null)ev.push({m,eq:o.eq,name:o.name,area:o.area||"Not set",mins:o.mins});else excl++})});return{ev,excl}}
 const relDays=m=>{const[a,b]=monthOf(m);return Math.max(0,Math.min(b,TD)-a+1)};
 function relStats(ev,days){const by={};ev.forEach(e=>{const r=by[e.eq]||(by[e.eq]={eq:e.eq,name:e.name,area:e.area,n:0,mins:0});r.n++;r.mins+=e.mins});
  const T=days*rel.hpd*60,rows=Object.values(by).map(r=>({...r,mttr:r.mins/r.n,mtbf:Math.max(0,T-r.mins)/r.n,av:T?Math.max(0,T-r.mins)/T*100:null})).sort((a,b)=>b.n-a.n||b.mins-a.mins);

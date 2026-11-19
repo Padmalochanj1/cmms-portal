@@ -46,3 +46,15 @@ Update (6): Password buttons moved into the profile page
     the button is pressed (press again or Cancel/Close to hide).
   - The forced "choose a new password" screen after an administrator reset is unchanged.
   - Operation sections have a short profile page (User Type, Username and the two buttons).
+
+Update (7): Interruption notification type, and order types
+  Files: js/app.js, css/style.css, sw.js, server/worker.js (version 3.1, deploy in Cloudflare).
+  - New notification type "Interruption" (in the Log a notification list and the Type filter). It needs title and
+    description only. It is NOT counted as a failure in MTTR / MTBF.
+  - Create order now needs a Type of order: PM - Preventive Maintenance, CM - Corrective Maintenance,
+    IM - Inspection / Lubrication / Compliance, OM - Overhauling / Refurbishment.
+    The type starts the order number, e.g. CM-0001-261119-01, and is shown in Order closing, Closure report,
+    Tomorrow's orders and the Create order list.
+  - Corrective orders created from Attention items are type CM (number still ACT-...).
+  - MTTR / MTBF: the order source "Additional orders" is now "Corrective (CM) orders": only Additional orders of
+    type CM are counted. Additional orders created before this update have no type and are not counted.
