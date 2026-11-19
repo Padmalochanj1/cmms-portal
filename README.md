@@ -18,7 +18,8 @@ server/worker.js      Cloudflare Worker code (for reference; it is deployed in C
 
 ## Common changes
 - Add a plant or section: edit `js/plants.js`, then add it to `UNITS` in `server/worker.js` and paste that into the Worker.
-- Server settings (GH_TOKEN, GH_REPO, SECRET, USERS, USERS_COKE_OVEN_EI) are in Cloudflare, never in this repo.
+- Users of each plant and section are separate Cloudflare secrets: USERS (Coal Washery E&I), USERS_COKE_OVEN_EI, USERS_COKE_OVEN_OPS, USERS_RMHS_EI. Each is JSON like {"name":["password","admin|user|mgmt"]}.
+- Server settings (GH_TOKEN, GH_REPO, SECRET, USERS, USERS_COKE_OVEN_EI, USERS_RMHS_EI) are in Cloudflare, never in this repo.
 - Do not put `master.json` or any records in this repo. This repo is public.
 
 ## Start and end time (E&I)
