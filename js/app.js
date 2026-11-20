@@ -226,7 +226,19 @@ A.equip=()=>{
 };
 
 const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
-A.sched=()=>`<div class="bar"><button data-save>Save changes</button><span class="hint">Weekly and longer maintenance for all equipment at a location falls on its assigned day. Changing a day moves the next due dates, so save before using the closing pages.</span></div>
+let BAL=null,balFrom="";
+function balPreview(){const E=L.dn(balFrom),H=730,M2=JSON.parse(JSON.stringify(M));M2.settings.balanceFrom=balFrom;BAL={from:balFrom,E,before:L.series(M,E,H),after:L.series(M2,E,H)}}
+const bst=a=>{const y=a.slice(365),av=y.reduce((s,x)=>s+x,0)/y.length;return{av,min:Math.min(...y),max:Math.max(...y),hi:y.filter(x=>x>1.5*av).length}};
+const bwd=(a,E)=>{const s=Array(7).fill(0),c=Array(7).fill(0);a.slice(365).forEach((v,k)=>{const w=L.wd(E+365+k)-1;s[w]+=v;c[w]++});return s.map((x,i)=>c[i]?(x/c[i]).toFixed(1):"-")};
+const balBars=(a,E,mx,c)=>`<div class="cols">${a.slice(0,28).map((v,k)=>`<div><em>${v}</em><i style="height:${Math.max(3,v/mx*110)}px;background:${c}"></i><span>${L.iso(E+k).slice(8)}</span></div>`).join("")}</div>`;
+const balUI=()=>{if(!balFrom)balFrom=M.settings.balanceFrom||L.iso(TD+1);let h=`<h3>Level the daily workload</h3><p class="hint">One rule for every plant: from the effective date, each equipment gets a fixed place inside every frequency cycle, so about the same number of orders fall due each day, on all 7 days. The rule also keeps working when equipment is added. Orders before the effective date stay as they are, and the location days below apply only before that date.${M.settings.balanceFrom?` Levelled schedule is in use since ${dmy(M.settings.balanceFrom)}.`:" It is not switched on for this plant yet."}</p>
+ <div class="bar"><label>Effective from <input type="date" id="bfrom" value="${balFrom}"${M.settings.balanceFrom?"":` min="${L.iso(TD+1)}"`}></label><button data-bprev>Preview</button>${BAL?`<button data-bapply>Apply and save</button>`:""}</div>`;
+ if(BAL){const b=bst(BAL.before),a=bst(BAL.after),mx=Math.max(...BAL.before.slice(0,28),...BAL.after.slice(0,28),1);
+  h+=tbl(["From year 2 (steady state)","Now","Levelled"],[["Average orders per day",b.av.toFixed(1),a.av.toFixed(1)],["Busiest day",b.max,a.max],["Quietest day",b.min,a.min],["Days above 1.5 times the average",b.hi,a.hi]].map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td><b>${r[2]}</b></td></tr>`))+
+  tbl(["Average by weekday",...DAYS.map(d=>d.slice(0,3))],[["Now",bwd(BAL.before,BAL.E)],["Levelled",bwd(BAL.after,BAL.E)]].map(([l,v])=>`<tr><td>${l}</td>${v.map(x=>`<td>${x}</td>`).join("")}</tr>`))+
+  `<h3 style="margin-top:14px">Orders per day, first 28 days from ${dmy(BAL.from)}: now</h3>${balBars(BAL.before,BAL.E,mx,COL.red)}<h3 style="margin-top:14px">Levelled</h3>${balBars(BAL.after,BAL.E,mx,COL.green)}<p class="hint">Nothing is changed until you press Apply and save. Around the effective date an order can come earlier or later than before; two orders of the same kind are never created right after each other.</p>`}
+ return h};
+A.sched=()=>balUI()+`<div class="bar" style="margin-top:22px"><button data-save>Save changes</button><span class="hint">Before the levelled schedule starts, weekly and longer maintenance for all equipment at a location falls on its assigned day. Changing a day moves the next due dates, so save before using the closing pages.</span></div>
 <h3>Assigned day for each location</h3>`+tbl(["Location","Assigned day"],Object.keys(M.areas).map(a=>`<tr><td>${esc(a)}</td><td><select data-area="${esc(a)}">${DAYS.map((d,i)=>`<option value="${i+1}"${+M.areas[a]===i+1?" selected":""}>${d}</option>`).join("")}</select></td></tr>`))+
 `<h3 style="margin-top:24px">Frequencies for each equipment type</h3><p class="hint">Tick the frequencies each type needs. Start date and criticality are set per equipment in Equipment details.</p>`+tbl(["Type",...M.settings.freqs],M.types.map(t=>`<tr><td>${esc(t)}</td>${M.settings.freqs.map((f,j)=>`<td><input type="checkbox" data-t="${esc(t)}" data-f="${j}"${(M.ticks[t]||[])[j]?" checked":""}></td>`).join("")}</tr>`));
 let ct="",cf="";
@@ -345,6 +357,7 @@ V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access on
     const d=e.target.dataset;
     if(e.target.id==="cpd"||e.target.id==="cpm"||e.target.id==="cpy"){if(e.target.value){if(e.target.id==="cpd")cmp.date=e.target.value;else if(e.target.id==="cpm")cmp.month=e.target.value;else cmp.year=+e.target.value;show()}return}
     if(e.target.id==="cpf"){if(R==="admin"&&e.target.value)M.settings.complianceFrom=e.target.value;return}
+    if(e.target.id==="bfrom"){if(e.target.value){balFrom=e.target.value;BAL=null;show()}return}
     if(R!=="admin"&&(d.k!==undefined||d.lk!==undefined||d.area!==undefined||d.t!==undefined))return;
 
     // Equipment list filters
@@ -393,8 +406,10 @@ V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access on
     if(e.target.id==="hd") hd=e.target.value;
 };
  $("#view").onclick=async e=>{const d=e.target.dataset;
-  if(R!=="admin"&&(d.add!==undefined||d.save!==undefined||d.addchk!==undefined||d.delchk!==undefined||d.cpsave!==undefined))return;
+  if(R!=="admin"&&(d.add!==undefined||d.save!==undefined||d.addchk!==undefined||d.delchk!==undefined||d.cpsave!==undefined||d.bprev!==undefined||d.bapply!==undefined))return;
   if(d.print!==undefined)window.print();
+  else if(d.bprev!==undefined){if(!(L.dn(balFrom)>TD)&&balFrom!==M.settings.balanceFrom)return toast("The effective date must be after today.",1);e.target.disabled=true;setTimeout(()=>{balPreview();show()},30)}
+  else if(d.bapply!==undefined){if(!BAL)return;if(M.settings.balanceFrom&&M.settings.balanceFrom!==BAL.from&&!confirm("A levelled schedule already starts on "+dmy(M.settings.balanceFrom)+". Changing the date changes how the days in between are shown in reports. Continue?"))return;e.target.disabled=true;try{M.settings.balanceFrom=BAL.from;await call("master",{master:M});toast("Levelled schedule saved. It applies from "+dmy(BAL.from)+".");BAL=null}catch(x){toast(x.message,1)}show()}
   else if(d.ct){cmp.tab=d.ct;show()}
   else if(d.cpn){const n=+d.cpn;if(cmp.tab==="weekly")cmp.date=L.iso(L.dn(cmp.date)+7*n);else if(cmp.tab==="monthly"){const y=+cmp.month.slice(0,4),m=+cmp.month.slice(5)-1+n,t=new Date(Date.UTC(y,m,1));cmp.month=t.toISOString().slice(0,7)}else cmp.year+=n;show()}
   else if(d.cpreload!==undefined){CPC={};CD.key="";show()}

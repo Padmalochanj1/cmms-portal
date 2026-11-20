@@ -58,3 +58,20 @@ Update (7): Interruption notification type, and order types
   - Corrective orders created from Attention items are type CM (number still ACT-...).
   - MTTR / MTBF: the order source "Additional orders" is now "Corrective (CM) orders": only Additional orders of
     type CM are counted. Additional orders created before this update have no type and are not counted.
+
+Update (8): New plant RMHS (E&I section)
+  Files: js/plants.js, sw.js, README.md, server/worker.js (version 3.2, deploy in Cloudflare),
+  data-repo/rmhs-ei/master.json (upload to the private data repo). See RMHS-SETUP.txt.
+
+Update (9): One levelled-workload rule for every plant
+  Files: js/logic.js, js/app.js, sw.js, data-repo/rmhs-ei/master.json (no Worker change).
+  - Every plant uses the same rule (js/logic.js). From the plant's "effective from" date (settings.balanceFrom),
+    each equipment gets a fixed slot inside every frequency cycle, so the number of orders per day is nearly the
+    same on all 7 days (tested: RMHS 14-21, Coal Washery 17-24, Coke Oven 24-32 a day, was up to 79, 136 and 202).
+    Nothing is stored per equipment and nobody has to run an optimiser. New equipment is levelled automatically and
+    existing equipment never moves when equipment is added at the end of the list.
+  - The only plant-specific setting is the effective date: Admin > Maintenance scheduling > Level the daily workload
+    (date, Preview, Apply and save). Before that date, or while it is empty, the old location-day rule applies,
+    so earlier orders and reports do not change. RMHS is on from 20/11/2026.
+  - Coal Washery and Coke Oven: set the date once in the same place.
+  - Location days are used only before the effective date.
