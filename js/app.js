@@ -14,7 +14,7 @@ async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;EX=d.extras||[];NAMES=d.names||{};NM=NAMES[U]||U;sessionStorage.cmmsName=NAMES[U]||"";cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
  $("#sub").textContent=`${NM}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
-const KL={resched:"Rescheduled",additional:"Additional",attention:"Attention action"},OTYPES={PM:"Preventive Maintenance",CM:"Corrective Maintenance",IM:"Inspection / Lubrication / Compliance",OM:"Overhauling / Refurbishment"};
+const KL={resched:"Rescheduled",additional:"Additional",attention:"Attention action"},OTYPES={PM:"Preventive Maintenance",CM:"Corrective Maintenance",IM:"Inspection / Lubrication / Compliance",OM:"Overhauling / Refurbishment",IO:"Improvement Order"};
 const toOrder=x=>({no:x.no,e:M.equipment.find(e=>e.id===x.eq)||{id:x.eq,name:x.name,type:x.type||"",loc:x.loc||"",crit:x.crit||""},ix:-1,fi:-1,freq:x.freq,due:L.dn(x.due),extra:x});
 const ordersOn=t=>L.orders(M,t).concat(EX.filter(x=>x.due===L.iso(t)).map(toOrder));
 const st=o=>{const c=cl[o.no]||RG.cl[o.no];return c?c.action.toUpperCase():(ms[o.no]||RG.ms[o.no])?"READY TO CLOSE":o.extra&&!o.extra.chk?"OPEN":L.items(M,o).length?"OPEN":"NO CHECKLIST"};
