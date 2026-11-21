@@ -113,7 +113,7 @@ V.checklist=()=>{const os=ordersOn(TD),o=os.find(x=>x.no===cur)||(pastOrder&&pas
  $("#view").onclick=async e=>{if(e.target.id!=="saveCk")return;e.target.disabled=true;
   try{const r=await call("measurement",{rec:{no:o.no,due:L.iso(o.due),eq:o.e.id,name:o.e.name,type:o.e.type,freq:o.freq,loc:o.e.loc,crit:o.e.crit,on:L.iso(TD),
    items:items.map(({r,reading,ok,notes})=>({id:r.id,item:r.item,unit:r.unit||"",reading:reading===""?"":isNaN(reading)?reading:Number(reading),mand:r.mand,criteria:r.criteria,ok,result:res({ok,notes}),notes:notes.trim()}))}});
-   if(r.duplicate)toast("This order’s checklist is already saved.",1);else toast(`Checklist saved for ${o.no}.`);const back=pastOrder&&pastOrder.no===cur;cur="";if(back){pastOrder=null;await load();RG.done=false;go("report")}else await load()}catch(x){toast(x.message,1);e.target.disabled=false}};
+   if(r.duplicate)toast("This order’s checklist is already saved.",1);else toast(`Checklist saved for ${o.no}.`);const back=pastOrder&&pastOrder.no===cur;cur="";if(back){pastOrder=null;await load();RG.done=false;go("report")}else{route="closing";location.hash="closing";await load()}}catch(x){toast(x.message,1);e.target.disabled=false}};
  if(items.length)upd()};
 
 async function rload(){try{const d=await call("range",{from:L.iso(TD-RG.days),to:L.iso(TD-1)});RG.cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));RG.ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]))}catch(x){toast(x.message,1)}RG.done=true;if(route==="report")draw()}
