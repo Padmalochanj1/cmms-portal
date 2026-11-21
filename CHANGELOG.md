@@ -3,6 +3,9 @@
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
 ## 20 Nov 2026
+**Back to Order closing after saving a checklist** (website only)
+- When the checklist is opened from Order closing (Checklist button), saving it returns to Order closing, where the order is ready to close. A checklist opened from the Closure report returns to the Closure report. A checklist chosen from the Checklist closing tab stays on that tab.
+
 **Order details popup and procedures** (Worker 3.4)
 - Every order number is now a link (Dashboard, Order closing, Closure report, Tomorrow's orders, Create order list, Admin histories). Clicking it opens a popup with, in this order: Order No, Equipment details, Order details, Procedure, then two expandable sections: Checklist items and Last order details.
 - Checklist items shows the items of the order, with the recorded readings and results once the checklist is saved. Last order details shows the previous order of the same equipment and frequency (for a rescheduled order, the deferred original) with its closure and readings, and loads when you open it.
