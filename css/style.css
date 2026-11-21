@@ -57,3 +57,13 @@ td input,td select{min-width:80px}
 .nform input,.nform select,.nform textarea{display:block;width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--pan);border:1px solid var(--line);border-radius:4px}
 .nform fieldset{border:1px solid var(--line);border-radius:6px;display:flex;flex-wrap:wrap;gap:6px 18px}.nform .pill{display:inline-flex;align-items:center;gap:6px;font-weight:400}.nform .pill input{width:auto;margin:0}
 .dc.noprint+.bar{margin-top:18px}
+
+a.ono{color:var(--pri);text-decoration:underline;cursor:pointer}
+.mback{position:fixed;inset:0;background:rgba(15,30,40,.5);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:4vh 12px;overflow:auto}
+.mbox{background:var(--pan);border-radius:10px;max-width:940px;width:100%;padding:18px 20px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.mhead{display:flex;justify-content:space-between;gap:12px;align-items:center}.mhead h2{margin:0;font-size:20px;word-break:break-all}
+.mbox h3{margin:18px 0 6px;font-size:13px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.mbox details{border:1px solid var(--line);border-radius:6px;margin-top:12px}.mbox summary{cursor:pointer;padding:9px 12px;font-weight:600;list-style:none}.mbox summary::-webkit-details-marker{display:none}
+.mbox summary::before{content:"+";display:inline-block;width:20px;font-weight:700;color:var(--pri)}.mbox details[open]>summary::before{content:"\2212"}.mbox details>div{padding:0 12px 12px}
+.pproc{white-space:pre-wrap;background:#f7f9fb;border:1px solid var(--line);border-radius:6px;padding:10px 12px}
+@media print{.mback{position:static;background:none;padding:0}.mbox{box-shadow:none}}

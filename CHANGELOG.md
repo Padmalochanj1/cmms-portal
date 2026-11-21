@@ -3,6 +3,12 @@
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
 ## 20 Nov 2026
+**Order details popup and procedures** (Worker 3.4)
+- Every order number is now a link (Dashboard, Order closing, Closure report, Tomorrow's orders, Create order list, Admin histories). Clicking it opens a popup with, in this order: Order No, Equipment details, Order details, Procedure, then two expandable sections: Checklist items and Last order details.
+- Checklist items shows the items of the order, with the recorded readings and results once the checklist is saved. Last order details shows the previous order of the same equipment and frequency (for a rescheduled order, the deferred original) with its closure and readings, and loads when you open it.
+- Procedures: Admin > Checklist items. Select an equipment type and a frequency, type the procedure and press Save changes. It is shown in the order popup and above the checklist when the order is closed. Management users see it read-only.
+- New Worker action `order_detail` (read-only, every role).
+
 **New order type IO - Improvement Order in Create order** (Worker 3.3)
 - Types are now PM, CM, IM, OM and IO. An IO order number starts with IO, for example `IO-0001-261121-01`.
 - To add another type later, edit two places: `OTYPES` in `js/app.js` (the list shown in the form) and the list `['PM', 'CM', 'IM', 'OM', 'IO']` in `worker.js` (the check when saving).
