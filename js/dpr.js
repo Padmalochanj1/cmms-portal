@@ -1,0 +1,151 @@
+// Coke Oven Operation: Daily Production Report (DPR). Pages: Dashboard, Daily entry, Reports, Settings.
+(()=>{
+const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole||"mgmt",UN=sessionStorage.cmmsUnit||"Coke Oven Operation";
+if(!T||sessionStorage.cmmsSection!=="ops"){location.replace(T?"app.html":"../index.html");return}
+const esc=CH.esc,fmt=CH.fmt,dmy=s=>s?String(s).split("-").reverse().join("/"):"",addDay=D.addDay;
+const todayISO=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
+const lastDay=m=>m+"-"+String(new Date(Date.UTC(+m.slice(0,4),+m.slice(5),0)).getUTCDate()).padStart(2,"0"),daysIn=m=>+lastDay(m).slice(8);
+const addMonth=(m,n)=>{const t=new Date(Date.UTC(+m.slice(0,4),+m.slice(5)-1+n,1));return t.toISOString().slice(0,7)};
+const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"],mName=m=>MONTHS[+m.slice(5)-1]+" "+m.slice(0,4);
+const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
+const S={cfg:{...D.DEF},recs:{},meta:{},rows:[],to:"",loaded:false,today:todayISO(),month:todayISO().slice(0,7),date:todayISO(),dirty:false,rtab:"sheet",rsec:"prd",rdate:todayISO(),truncated:false};
+const ROUTES=[["dashboard","Dashboard"]].concat(R!=="mgmt"?[["entry","Daily entry"]]:[]).concat([["report","Reports"]]).concat(R==="admin"?[["settings","Settings"]]:[]);
+let route=ROUTES.some(r=>r[0]===(location.hash||"").slice(1))?location.hash.slice(1):"dashboard";
+async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
+ try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
+ if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
+async function load(to,force){to=to||S.month;if(!force&&S.loaded&&S.to===to)return;const d=await call("dpr_load",{to});S.cfg={...D.DEF,...d.settings};S.recs={};S.meta={};
+ Object.keys(d.months).forEach(m=>Object.entries(d.months[m]).forEach(([dt,x])=>{S.recs[dt]=x.v;S.meta[dt]={by:x.by,at:x.at}}));S.today=d.today||S.today;S.truncated=d.truncated;S.to=to;S.loaded=true;rebuild(lastDay(to))}
+function rebuild(to){S.rows=D.build(S.recs,to||lastDay(S.to),S.cfg)}
+const monthRows=m=>S.rows.filter(r=>r.date.startsWith(m)),dv=(r,k)=>r.has?D.val(r,k):null,sv=(r,k)=>D.val(r,k);
+const FBY=k=>D.BY[k];
+async function show(force){const v=$("#view");v.onclick=v.oninput=v.onchange=null;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
+ $("#sub").textContent=`${U} (${{admin:"Administrator",entry:"Data entry",mgmt:"Management"}[R]||R})`;$("#unitH").textContent=UN;
+ try{const m=route==="entry"?S.date.slice(0,7):route==="report"&&S.rtab==="day"?S.rdate.slice(0,7):S.month;await load(m,force);({dashboard:dashboard,entry:entry,report:report,settings:settings}[route]||dashboard)()}catch(e){v.innerHTML=`<p class="empty">Could not load: ${esc(e.message)} <button id="retry" class="ghost">Try again</button></p>`;const b=$("#retry");if(b)b.onclick=()=>show(true)}}
+const go=r=>{if(S.dirty&&route==="entry"&&r!=="entry"&&!confirm("You have unsaved entries for "+dmy(S.date)+". Leave without saving?"))return;S.dirty=false;route=r;location.hash=r;show()};
+$("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};$("#refresh").onclick=()=>{if(S.dirty&&!confirm("Unsaved entries will be lost. Reload anyway?"))return;S.dirty=false;show(true)};
+window.addEventListener("beforeunload",e=>{if(S.dirty){e.preventDefault();e.returnValue=""}});
+/* ============================ DAILY ENTRY ============================ */
+function prevCalc(date){const rows=D.build(S.recs,addDay(date,-1),S.cfg);return rows.length?rows[rows.length-1].c:null}
+function entry(){const v=$("#view"),date=S.date,rec=S.recs[date]||{},meta=S.meta[date];let prev=prevCalc(date);
+ const cell=f=>f.t==="calc"?`<td class="calc ${f.k==="clT"||/^cl\d|^cb\d/.test(f.k)?"stk":""}" data-c="${f.k}">–</td>`:f.t==="text"?"":`<td><input type="number" step="any" inputmode="decimal" data-k="${f.k}" value="${esc(rec[f.k]??"")}" ${f.t==="ovr"?`class="ovr${rec[f.k]!=null?" set":""}" placeholder="auto"`:f.k==="dpS"||f.k==="dbS"?`placeholder="${S.cfg.standardMinutes}"`:""} aria-label="${esc(f.l)}"></td>`;
+ const secHTML=s=>{const nf=s.f.filter(f=>f.t!=="text"),tx=s.f.filter(f=>f.t==="text");return`<section class="sec" id="s-${s.id}"><h3>${esc(s.title)}${s.k?"":""}</h3><div class="body">${s.note?`<p class="note">${esc(s.note)}</p>`:""}<table class="g"><thead><tr>${nf.map(f=>`<th>${esc(f.l)}${f.n?`<br><small>${esc(f.n)}</small>`:""}</th>`).join("")}</tr></thead><tbody><tr>${nf.map(cell).join("")}</tr></tbody></table>${tx.map(f=>`<label class="note" style="display:block;margin-top:8px">${esc(f.l)}<input class="text" data-k="${f.k}" maxlength="300" value="${esc(rec[f.k]??"")}"></label>`).join("")}</div></section>`};
+ v.innerHTML=`<div class="bar noprint"><button class="ghost" data-d="-1">&lt; Previous day</button><label>Date <input type="date" id="edate" value="${date}" max="${addDay(S.today,1)}"></label><button class="ghost" data-d="1">Next day &gt;</button><button class="ghost" data-d="0">Today</button><button class="ghost" id="ereload">Reload</button>
+  <span class="chip ${meta?"ok":"new"}">${meta?`Saved by ${esc(meta.by)} on ${dmy(meta.at.slice(0,10))} ${meta.at.slice(11,16)} UTC`:"Not saved yet"}</span></div><p class="hint">Blue cells are calculated like the Excel sheet. Type only in the white cells; leave a cell empty if there is nothing to enter. Opening stock and initial belt readings come from the previous day; type a value in them only to correct it.</p>
+  ${D.SEC.map(secHTML).join("")}<div class="sticky"><button id="esave">Save ${dmy(date)}</button><span id="estat" class="hint"></span></div>`;
+ const raw=()=>{const o={};v.querySelectorAll("[data-k]").forEach(i=>{if(i.value!=="")o[i.dataset.k]=i.value});return o};
+ const recalc=()=>{const c=D.calcDay(date,raw(),prev,S.cfg);v.querySelectorAll("[data-c]").forEach(td=>{const f=FBY(td.dataset.c),x=c[f.k];td.textContent=x==null||!Number.isFinite(x)?"–":fmt(x,f.d);td.style.color=td.classList.contains("stk")&&x<-0.005?"#c0262d":""});
+  v.querySelectorAll("input.ovr").forEach(i=>{const x=c[i.dataset.k];i.placeholder=x==null?"auto":fmt(x,FBY(i.dataset.k).d);i.classList.toggle("set",i.value!=="")})};
+ recalc();
+ v.oninput=e=>{if(e.target.dataset.k===undefined)return;S.dirty=true;$("#estat").textContent="Unsaved changes";recalc()};
+ const jump=d=>{if(S.dirty&&!confirm("You have unsaved entries for "+dmy(S.date)+". Leave without saving?"))return;S.dirty=false;S.date=d;show()};
+ v.onclick=async e=>{const t=e.target;if(t.dataset.d!==undefined){const n=+t.dataset.d;jump(n===0?S.today:addDay(date,n))}else if(t.id==="ereload"){if(S.dirty&&!confirm("Unsaved entries will be lost. Reload?"))return;S.dirty=false;show(true)}
+  else if(t.id==="esave"){const vv=raw();if(!Object.keys(vv).length)return toast("Enter at least one value before saving.",1);t.disabled=true;
+   try{const r=await call("dpr_save",{date,v:vv,base:meta?meta.at:undefined});S.recs[date]=vv;S.meta[date]={by:U,at:r.at};S.dirty=false;rebuild(lastDay(date.slice(0,7)));toast("Saved "+dmy(date)+".");entry()}catch(x){toast(x.message,1);t.disabled=false}}};
+ v.onchange=e=>{if(e.target.id==="edate"&&e.target.value)jump(e.target.value)}}
+/* ============================ REPORTS ============================ */
+const STK=new Set(["ofg","oby","cfg","cby"]);
+function cellVal(r,f,last){if(!r||r.date>last)return null;if(f.t==="text")return r.has?(r.raw[f.k]||""):null;if(f.t==="calc"||f.t==="ovr")return r.has||STK.has(f.sec)?sv(r,f.k):null;return dv(r,f.k)}
+const aggTxt={sum:"total",avg:"average",last:"last"};
+function sheetTable(secs,m,rows){const last=rows.filter(r=>r.has).map(r=>r.date).pop()||"",byDate={};rows.forEach(r=>byDate[r.date]=r);const T=D.totals(rows),fs=secs.flatMap(s=>s.f);let h=`<div class="wrapx"><table class="r"><thead><tr><th>Date</th>${fs.map(f=>`<th class="${f.t==="calc"?"c":""}" title="${esc(secs.find(s=>s.id===f.sec).title)}">${esc(f.l)}</th>`).join("")}</tr></thead><tbody>`;
+ for(let d=1;d<=daysIn(m);d++){const dt=m+"-"+String(d).padStart(2,"0"),r=byDate[dt];h+=`<tr><td>${dmy(dt)}</td>${fs.map(f=>{const x=cellVal(r,f,last);return f.t==="text"?`<td class="tx">${esc(x||"")}</td>`:`<td class="${f.t==="calc"?"c":""} ${x==null?"no":""}">${x==null||!Number.isFinite(x)?"–":fmt(x,f.d)}</td>`}).join("")}</tr>`}
+ h+=`<tr class="tot"><td>Month</td>${fs.map(f=>f.t==="text"||f.agg==="none"?"<td></td>":`<td title="${aggTxt[f.agg]}">${T[f.k]==null||!Number.isFinite(T[f.k])?"–":fmt(T[f.k],f.d)}<small>${aggTxt[f.agg]}</small></td>`).join("")}</tr></tbody></table></div>`;return h}
+function csvMonth(m,rows){const last=rows.filter(r=>r.has).map(r=>r.date).pop()||"",byDate={};rows.forEach(r=>byDate[r.date]=r);const T=D.totals(rows),fs=D.F,q=x=>'"'+String(x??"").replace(/"/g,'""')+'"',secOf=k=>D.SEC.find(s=>s.id===D.BY[k].sec).title;
+ const L=[["",...fs.map(f=>secOf(f.k))].map(q).join(","),["Date",...fs.map(f=>f.l)].map(q).join(",")];
+ for(let d=1;d<=daysIn(m);d++){const dt=m+"-"+String(d).padStart(2,"0"),r=byDate[dt];L.push([dmy(dt),...fs.map(f=>{const x=cellVal(r,f,last);return x==null?"":f.t==="text"?x:Math.round(x*1e6)/1e6})].map(q).join(","))}
+ L.push(["Month (total / average / last)",...fs.map(f=>f.t==="text"||f.agg==="none"||T[f.k]==null?"":Math.round(T[f.k]*1e6)/1e6)].map(q).join(","));return "\ufeff"+L.join("\r\n")}
+function dayBlocks(date){const r=S.rows.find(x=>x.date===date);if(!r)return`<p class="empty">No data for ${dmy(date)}.</p>`;
+ return D.SEC.map(s=>{const f=s.f;return`<div class="rd"><h4>${esc(s.title)}</h4><div class="wrapx"><table class="r"><thead><tr>${f.map(x=>`<th class="${x.t==="calc"?"c":""}">${esc(x.l)}</th>`).join("")}</tr></thead><tbody><tr>${f.map(x=>{const val=cellVal(r,x,"9999");return x.t==="text"?`<td class="tx" style="text-align:left">${esc(val||"")}</td>`:`<td class="${x.t==="calc"?"c":""} ${val==null?"no":""}">${val==null||!Number.isFinite(val)?"–":fmt(val,x.d)}</td>`}).join("")}</tr></tbody></table></div></div>`}).join("")}
+function summaryHTML(m,rows,date){const T=D.totals(rows),rd=rows.find(r=>r.date===date)||rows.filter(r=>r.has).pop();let h="";
+ if(rd){const g=(r,ks)=>ks.reduce((s,k)=>s+(D.val(r,k)||0),0),has=rd.has,dd=rd.date;
+  const lines=[["BF GRADE",has?D.val(rd,"prT"):null,T.prT,rd.c.clT],["NUT COKE",has?g(rd,["bp0","bp1","bp2","bp3"]):null,(T.bp0||0)+(T.bp1||0)+(T.bp2||0)+(T.bp3||0),g(rd,["cb0","cb1","cb2","cb3"])],["BREEZE",has?D.val(rd,"bp4"):null,T.bp4,rd.c.cb4],["FINES",has?D.val(rd,"bp5"):null,T.bp5,rd.c.cb5]];
+  const tot=lines.reduce((a,l)=>[a[0]+(l[1]||0),a[1]+(l[2]||0),a[2]+(l[3]||0)],[0,0,0]);
+  h+=`<h3>Finished goods summary, as at ${dmy(dd)}</h3><div class="wrapx"><table class="r"><thead><tr><th>Finished goods</th><th>Production on ${dmy(dd)} (MT)</th><th>Month to date (MT)</th><th>Opening stock of ${dmy(addDay(dd,1))} (MT)</th></tr></thead><tbody>${lines.map(l=>`<tr><td>${l[0]}</td><td>${fmt(l[1],2)}</td><td>${fmt(l[2],2)}</td><td>${fmt(l[3],2)}</td></tr>`).join("")}<tr class="tot"><td>TOTAL</td><td>${fmt(tot[0],2)}</td><td>${fmt(tot[1],2)}</td><td>${fmt(tot[2],2)}</td></tr></tbody></table></div>`}
+ h+=`<h3 style="margin-top:18px">Month figures for ${mName(m)}</h3><p class="hint">Totals for quantities, averages for ratios and quality, last day for stocks and readings. ${T.days||0} day(s) with data.</p><div class="wrapx"><table class="r"><thead><tr><th>Section</th><th>Item</th><th>Month</th><th>Basis</th></tr></thead><tbody>`;
+ D.SEC.forEach(s=>s.f.forEach(f=>{if(f.t==="text"||f.agg==="none"||T[f.k]==null)return;h+=`<tr><td>${esc(s.title)}</td><td style="text-align:left">${esc(f.l)}</td><td class="${f.t==="calc"?"c":""}">${fmt(T[f.k],f.d)}</td><td>${aggTxt[f.agg]}</td></tr>`}));return h+`</tbody></table></div>`}
+function report(){const v=$("#view"),m=S.month,rows=monthRows(m),tabs=[["sheet","Month sheet"],["day","Day report"],["sum","Month summary"]];
+ const body=S.rtab==="sheet"?`<div class="tabs">${D.SEC.map(s=>`<button data-sec="${s.id}" class="${S.rsec===s.id?"on":""}">${esc(s.title.replace(/ \(MT\)| \(KWhr\/day\)| \(N-m3\)/,""))}</button>`).join("")}</div><div class="legend"><span><i style="background:#d7e9ff"></i>Calculated</span><span><i style="background:#fff"></i>Entered</span><span><i style="background:#fff4e5"></i>Month row</span></div>${rows.some(r=>r.has)?sheetTable([D.SEC.find(s=>s.id===S.rsec)],m,rows):`<p class="empty">No data for ${mName(m)}.</p>`}`
+  :S.rtab==="day"?`${dayBlocks(S.rdate)}`:summaryHTML(m,rows,S.rtab==="sum"?S.rdate:"");
+ v.innerHTML=`<div class="bar noprint"><button class="ghost" data-mm="-1">&lt;</button><label>Month <input type="month" id="rmonth" value="${m}"></label><button class="ghost" data-mm="1">&gt;</button>${S.rtab!=="sheet"?`<label>Date <input type="date" id="rdate" value="${S.rdate}"></label>`:""}<button class="ghost" id="rcsv">Download sheet (CSV)</button><button class="ghost" id="rprint">Print</button></div>
+  <div class="tabs noprint">${tabs.map(([k,n])=>`<button data-t="${k}" class="${S.rtab===k?"on":""}">${n}</button>`).join("")}</div>${S.rtab==="day"?`<h3>Daily Production Report: ${dmy(S.rdate)}</h3>`:""}${body}`;
+ v.onclick=e=>{const t=e.target;if(t.dataset.mm){S.month=addMonth(S.month,+t.dataset.mm);if(S.rdate.slice(0,7)!==S.month)S.rdate=lastDay(S.month)>S.today?(S.month===S.today.slice(0,7)?S.today:lastDay(S.month)):lastDay(S.month);show()}else if(t.dataset.t){S.rtab=t.dataset.t;show()}else if(t.dataset.sec){S.rsec=t.dataset.sec;report()}
+  else if(t.id==="rprint")window.print();else if(t.id==="rcsv"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csvMonth(m,rows)],{type:"text/csv"}));a.download="Coke_Oven_DPR_"+m+".csv";a.click()}};
+ v.onchange=e=>{if(e.target.id==="rmonth"&&e.target.value){S.month=e.target.value;S.rdate=S.month===S.today.slice(0,7)?S.today:lastDay(S.month);show()}else if(e.target.id==="rdate"&&e.target.value){S.rdate=e.target.value;if(S.rdate.slice(0,7)!==S.month)S.month=S.rdate.slice(0,7);show()}}}
+/* ============================ DASHBOARD ============================ */
+function dashboard(){const v=$("#view"),m=S.month,all=monthRows(m),data=all.filter(r=>r.has),lastD=data.length?data[data.length-1].date:"",rows=all.filter(r=>r.date<=lastD),lab=rows.map(r=>r.date.slice(8)),tl=k=>dmy(rows[k].date),T=D.totals(all);
+ const head=`<div class="dh"><h2>Coke Oven Plant: ${mName(m)}</h2><div class="bar noprint" style="margin:0"><button class="ghost" data-mm="-1">&lt; Previous month</button><label>Month <input type="month" id="dmonth" value="${m}"></label><button class="ghost" data-mm="1">Next month &gt;</button><button class="ghost" id="dprint">Print</button></div></div>`;
+ if(!data.length){v.innerHTML=head+`<p class="empty">No data for ${mName(m)} yet.${R!=="mgmt"?" Use Daily entry to add it.":""}</p>`;bindDash(v);return}
+ const ser=k=>rows.map(r=>dv(r,k)),sum=(r,ks)=>ks.some(k=>dv(r,k)!=null)?ks.reduce((s,k)=>s+(dv(r,k)||0),0):null,ssum=(r,ks)=>ks.reduce((s,k)=>s+(sv(r,k)||0),0),lastRow=data[data.length-1];
+ const sd=(k,s)=>T[k]==null?0:T[k],close=lastRow.c.clT+ssum(lastRow,["cb0","cb1","cb2","cb3","cb4","cb5"]);
+ const runPct=rows.filter(r=>r.has).map(r=>r.c.dpA/r.c.dpS*100),runAvg=runPct.length?runPct.reduce((a,b)=>a+b,0)/runPct.length:null;
+ const kp=[["k1","MTD production","tp",T.tp,"MT",`${fmt(T.tp/T.days,1)} MT / day`,"prod"],["k2","Capacity utilisation","",T.cap,"%",`rated ${fmt(S.cfg.annualCapacity,0)} MT / year`,"prod"],["k3","Total dispatch","",T.tdT,"MT",`RMHS ${fmt(T.tdR,0)} · Sinter ${fmt(T.tdS,0)}`,"disp"],["k4","Closing stock","",close,"MT",`as on ${dmy(lastD)}`,"stock"],
+  ["k5","Coal consumed","",T.ccT,"MT",`coal / coke ${fmt(T.pcr,3)}`,"cons"],["k6","Power per tonne coke","",T.pwp,"kWh",`coke oven ${fmt(T.pws,1)} kWh/t`,"energy"],["k7","Steam generation","",T.sgt,"TPH avg",`utilisation ${fmt(T.scu,1)}%`,"energy"],["k8","Plant running time","",runAvg,"%","of standard minutes","delay"]];
+ const cd=(id,t,cls="")=>`<div class="cd ${cls}"><h4>${t}</h4><div id="${id}"></div></div>`,secH=(id,t,c1,c2,note,inner)=>`<section class="ds" id="${id}" style="--c1:${c1};--c2:${c2}"><h3>${t}<span>${note||""}</span></h3>${inner}</section>`;
+ const jobs=[],chart=(id,cfg)=>jobs.push(()=>CH.chart($("#"+id),{labels:lab,tipLabel:tl,...cfg})),donut=(id,cfg)=>jobs.push(()=>CH.donut($("#"+id),cfg)),sp=(id,cfg)=>jobs.push(()=>CH.spark($("#"+id),{labels:rows.map(r=>dmy(r.date)),...cfg}));
+ const PL=CH.PAL;let html=head+`<div class="kpis">${kp.map(([c,t,,val,u,sub,go])=>`<div class="kc ${c}" data-go="${go}"><small>${t}</small><b>${fmt(val,val>=1000?0:1)}<small style="display:inline;font-size:13px"> ${u}</small></b><span>${sub}</span></div>`).join("")}</div>
+  <nav class="dnav noprint">${[["stock","Stock position"],["prod","Production"],["disp","Dispatch"],["cons","Raw material"],["energy","Power, water and steam"],["delay","Delay report"],["cq","Charging coal quality"],["kq","Coke quality"],["safe","Safety"],["proc","Process"],["belt","Belt readings"]].map(([i,t])=>`<a href="#${i}" data-jump="${i}">${t}</a>`).join("")}</nav>`;
+ // 1 stock
+ html+=secH("stock","1. Stock position","#0f3a5f","#2f80ed","Opening and closing stock",`<div class="cards">${cd("c1","Closing stock by day (MT)","w2")}${cd("c2","Finished goods by size on "+dmy(lastD))}${cd("c3","By product closing stock on "+dmy(lastD))}</div>`);
+ chart("c1",{type:"line",series:[{name:"Finished goods",color:PL[0],data:rows.map(r=>sv(r,"clT")),area:true},{name:"By product",color:PL[2],data:rows.map(r=>ssum(r,["cb0","cb1","cb2","cb3","cb4","cb5"])),area:true},{name:"Opening stock total",color:PL[4],data:rows.map(r=>sv(r,"oT"))}],unit:"MT",dec:1});
+ donut("c2",{items:D.G9C.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cl"+i])})),center:"Finished goods",unit:" MT",dec:1});donut("c3",{items:D.BYC.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cb"+i])})),center:"By product",unit:" MT",dec:1});
+ // 2 production
+ html+=secH("prod","2. Production","#1b7f4b","#27ae60","BF grade coke and by products",`<div class="cards">${cd("p1","Daily production (MT) and month to date","w2")}${cd("p2","Capacity utilisation (%)")}${cd("p3","Capacity utilisation, month")}${cd("p4","Production mix, month")}${cd("p5","Gross coke per oven (MT)")}</div>`);
+ chart("p1",{series:[{name:"BF grade coke",color:PL[0],data:ser("prT")},{name:"Nut coke",color:PL[1],data:rows.map(r=>sum(r,["bp0","bp1","bp2","bp3"]))},{name:"Breeze",color:PL[2],data:ser("bp4")},{name:"Fines",color:PL[3],data:ser("bp5")},{name:"Month to date",color:PL[4],type:"line",axis:"y2",data:rows.map(r=>r.has?sv(r,"cum"):null)}],stacked:true,unit:"MT",y2unit:" MT",dec:1});
+ chart("p2",{type:"line",series:[{name:"Capacity utilisation",color:PL[5],data:ser("cap"),area:true}],unit:"%",dec:1});jobs.push(()=>CH.gauge($("#p3"),{id:1,value:T.cap,max:130,label:"month average",unit:"%",zones:[[80,"#eb5757"],[95,"#f2c94c"],[130,"#27ae60"]]}));
+ donut("p4",{items:[{name:"BF grade coke",value:T.prT},{name:"Nut coke",value:(T.bp0||0)+(T.bp1||0)+(T.bp2||0)+(T.bp3||0)},{name:"Breeze",value:T.bp4},{name:"Coke fines",value:T.bp5}],center:"Production",unit:" MT",dec:0});
+ chart("p5",{type:"line",series:[{name:"On date",color:PL[1],data:ser("gpo")},{name:"Month to date",color:PL[0],data:ser("gpm")}],unit:"MT / oven",dec:2});
+ // 3 dispatch
+ html+=secH("disp","3. Dispatch","#b45309","#f2994a","RMHS, sinter, outside sales and by product sales",`<div class="cards">${cd("d1","Dispatch by destination (MT)","w2")}${cd("d2","Share of dispatch, month")}${cd("d3","Dispatch to RMHS by size, month")}</div>`);
+ chart("d1",{series:[{name:"RMHS",color:PL[0],data:ser("tdR")},{name:"Sinter",color:PL[2],data:ser("tdS")},{name:"By product sales",color:PL[1],data:ser("tdB")},{name:"Outside sales",color:PL[3],data:ser("osT")}],stacked:true,unit:"MT",dec:1});
+ donut("d2",{items:[{name:"RMHS",value:T.tdR},{name:"Sinter",value:T.tdS},{name:"By product sales",value:T.tdB},{name:"Outside sales",value:T.osT}],center:"Dispatch",unit:" MT",dec:0});
+ jobs.push(()=>CH.chart($("#d3"),{labels:D.RMHS,series:[{name:"MT",color:PL[0],data:D.RMHS.map((_,i)=>T["dr"+i]||0)}],unit:"MT",dec:1,height:230}));
+ // 4 consumption
+ html+=secH("cons","4. Cokeoven / self consumption of raw material","#5b2bb0","#9b51e0","Coal consumed by type",`<p class="hint" style="margin:0 0 8px">${D.COAL.map((n,i)=>n+" = "+D.COALN[i]).join(" · ")}</p><div class="cards">${cd("r1","Coal consumption by type (MT)","w2")}${cd("r2","Share by coal type, month")}${cd("r3","Coal to coke ratio")}${cd("r4","Total and dry coal consumption (MT)")}</div>`);
+ chart("r1",{series:D.COAL.map((n,i)=>({name:n+" "+D.COALN[i].replace(/^[^ ]+ /,"").replace(/ ?Coal$/,""),color:PL[i],data:ser("cc"+i)})).map((s,i)=>({...s,name:D.COAL[i]})),stacked:true,unit:"MT",dec:1});
+ donut("r2",{items:D.COAL.map((n,i)=>({name:n,value:T["cc"+i]||0})),center:"Coal",unit:" MT",dec:0});
+ chart("r3",{type:"line",series:[{name:"Coal to coke ratio",color:PL[8],data:ser("pcr"),area:true}],dec:3});chart("r4",{type:"line",series:[{name:"Total consumption",color:PL[0],data:ser("ccT")},{name:"Dry coal consumption",color:PL[1],data:ser("dc")}],unit:"MT",dec:1});
+ // 5 energy
+ html+=secH("energy","5. Power, water and steam","#00798c","#00b8d9","Power per tonne, make-up water, steam generation",`<div class="cards">${cd("e1","Power consumption (kWh/day)","w2")}${cd("e2","Power per tonne of coke (kWh/t)")}${cd("e3","Steam generation (TPH) and utilisation")}${cd("e4","Make-up water (N-m3)")}</div>`);
+ chart("e1",{series:[{name:"Coke oven",color:PL[0],data:ser("pw1")},{name:"WHRB",color:PL[1],data:ser("pw2")}],stacked:true,unit:"kWh",dec:0});
+ chart("e2",{type:"line",series:[{name:"Total power per tonne",color:PL[3],data:ser("pwp"),area:true},{name:"Coke oven power per tonne",color:PL[0],data:ser("pws")}],unit:"kWh/t",dec:1});
+ chart("e3",{series:[{name:"Steam generation (TPH)",color:PL[5],data:ser("sgt")},{name:"Capacity utilisation",color:PL[2],type:"line",axis:"y2",data:ser("scu")}],unit:"TPH",y2unit:" %",dec:1});chart("e4",{type:"line",series:[{name:"Make-up water",color:PL[0],data:ser("wt"),area:true}],unit:"N-m3",dec:0});
+ // 6 delay
+ const DL=[["Electrical","E",PL[0]],["Mechanical","M",PL[2]],["Operational","O",PL[1]],["Power failure","F",PL[3]],["Others","X",PL[4]]];
+ html+=secH("delay","6. Delay report","#9c2b2b","#eb5757","Coke oven plant and boiler",`<div class="cards">${cd("l1","Coke oven plant: delay minutes by cause","w2")}${cd("l2","Plant delay, month")}${cd("l3","Actual running (min per day)")}${cd("l4","Coke oven boiler: delay minutes by cause","w2")}</div>`);
+ chart("l1",{series:[...DL.map(([n,k,c])=>({name:n,color:c,data:ser("dp"+k)})),{name:"PPM",color:PL[6],data:ser("dpP")}],stacked:true,unit:"min",dec:0});
+ donut("l2",{items:[...DL.map(([n,k,c])=>({name:n,color:c,value:T["dp"+k]||0})),{name:"PPM",color:PL[6],value:T.dpP||0}],center:"Minutes",unit:"",dec:0});
+ chart("l3",{type:"line",series:[{name:"Actual running",color:PL[1],data:ser("dpA"),area:true}],unit:"min",dec:0});chart("l4",{series:DL.map(([n,k,c])=>({name:n,color:c,data:ser("db"+k)})),stacked:true,unit:"min",dec:0});
+ // 7/8 quality sparks
+ const spark=(arr,pal)=>`<div class="sparks">${arr.map((f,i)=>`<div class="spk" id="${pal}${i}"></div>`).join("")}</div>`;
+ html+=secH("cq","7. Charging coal quality","#0f3a5f","#4f8fe6","Daily values, month average dashed",spark(D.CQ,"q"));D.CQ.forEach((n,i)=>sp("q"+i,{title:n,data:ser("cq"+i),color:PL[i%PL.length],dec:2}));
+ html+=secH("kq","8. Coke quality (finished goods: BF grade)","#1b7f4b","#6fcf97","Daily values, month average dashed",spark(D.KQ,"k"));D.KQ.forEach((n,i)=>sp("k"+i,{title:n,data:ser("kq"+i),color:PL[(i+3)%PL.length],dec:2}));
+ // 9 safety
+ html+=secH("safe","9. Safety","#9c2b2b","#f2994a","Near miss, reportable and minor",`<div class="cards">${cd("f1","Safety events by day","w2")}${cd("f2","Events in the month")}</div>`);
+ chart("f1",{series:[{name:"Near miss",color:PL[2],data:ser("sf0")},{name:"Reportable",color:PL[3],data:ser("sf1")},{name:"Minor & non reportable",color:PL[0],data:ser("sf2")}],unit:"events",dec:0});donut("f2",{items:[{name:"Near miss",value:T.sf0||0},{name:"Reportable",value:T.sf1||0},{name:"Minor & non reportable",value:T.sf2||0}],center:"Events",dec:0});
+ // 10 process
+ html+=secH("proc","10. Process","#00798c","#27ae60","Pushings, coking hours, yield and charging",`<div class="cards">${cd("g1","Pushings per day and month to date","w2")}${cd("g2","Average cooking hours")}${cd("g3","Dry coke yield (%)")}${cd("g4","Average per oven charging (MT)")}${cd("g5","Average process temperature")}</div>`);
+ chart("g1",{series:[{name:"No. of pushings",color:PL[0],data:ser("pnp")},{name:"Month to date",color:PL[1],type:"line",axis:"y2",data:rows.map(r=>r.has?sv(r,"pmp"):null)}],unit:"pushings",y2unit:" MTD",dec:0});
+ chart("g2",{type:"line",series:[{name:"Cooking hours",color:PL[5],data:ser("pck"),area:true}],unit:"hours",dec:2});chart("g3",{type:"line",series:[{name:"Dry coke yield",color:PL[1],data:ser("pdy"),area:true}],unit:"%",dec:2});
+ chart("g4",{type:"line",series:[{name:"Dry",color:PL[0],data:ser("ppd")},{name:"Wet",color:PL[2],data:ser("ppw")}],unit:"MT",dec:2});chart("g5",{type:"line",series:[{name:"Process temperature",color:PL[3],data:ser("ptp"),area:true}],dec:0});
+ // 11 belts
+ html+=secH("belt","11. Belt readings","#5b2bb0","#6c5ce7","Reading difference against the calculated figure",`<div class="cards">${cd("b1","Change % against calculation","w2")}${cd("b2","Readings (MT)","w2")}</div>`);
+ chart("b1",{series:[{name:"J1 coke production",color:PL[0],data:ser("j1p")},{name:"M8 coal consumption",color:PL[2],data:ser("m8p")}],unit:"%",dec:2});
+ chart("b2",{series:[{name:"J1 difference",color:PL[0],data:ser("j1d")},{name:"Production as per calculation",color:PL[5],data:ser("j1c"),type:"line"},{name:"M8 difference",color:PL[2],data:ser("m8d")},{name:"Consumption as per calculation",color:PL[3],data:ser("m8c"),type:"line"}],unit:"MT",dec:1});
+ v.innerHTML=html;jobs.forEach(j=>j());bindDash(v)}
+function bindDash(v){v.onclick=e=>{const t=e.target,kc=t.closest&&t.closest("[data-go]"),a=t.closest&&t.closest("[data-jump]");if(t.dataset.mm){S.month=addMonth(S.month,+t.dataset.mm);show()}else if(t.id==="dprint")window.print();else if(kc||a){e.preventDefault();const el=$("#"+(kc?kc.dataset.go:a.dataset.jump));if(el)el.scrollIntoView({behavior:"smooth",block:"start"})}};
+ v.onchange=e=>{if(e.target.id==="dmonth"&&e.target.value){S.month=e.target.value;show()}}}
+/* ============================ SETTINGS ============================ */
+function settings(){const v=$("#view"),c=S.cfg;
+ v.innerHTML=`<div class="set"><h3>Plant settings</h3><label>Annual capacity (MT per year), used for capacity utilisation = production / (capacity / 365) x 100<input type="number" id="s1" min="1" step="any" value="${c.annualCapacity}"></label>
+  <label>Steam capacity (TPH), used for steam utilisation = TPH / capacity x 100<input type="number" id="s2" min="1" step="any" value="${c.steamCapacity}"></label>
+  <label>Standard running minutes per day (delay reports)<input type="number" id="s3" min="1" max="1440" value="${c.standardMinutes}"></label>
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="s4" ${c.beltResetMonthly?"checked":""}> Belt readings start again from 0 on the 1st of each month, as in the Excel sheet</label>
+  <p><button id="ssave">Save settings</button></p>
+  <h3 style="margin-top:26px">Coal types in Cokeoven / Self Consumption of Raw Material</h3><table class="r"><thead><tr><th>Entry column</th><th style="text-align:left">Coal type</th></tr></thead><tbody>${D.COAL.map((n,i)=>`<tr><td>${n}</td><td style="text-align:left">${esc(D.COALN[i])}</td></tr>`).join("")}</tbody></table>
+  <p class="hint">TOTAL Cons. is the sum of the five columns, as in the Excel sheet. Closing stock = opening stock + production - dispatch and sales, size by size.</p>
+  <h3 style="margin-top:26px">Remove a day</h3><p class="hint">Deletes everything entered for one date. This cannot be undone.</p><div class="bar"><label>Date <input type="date" id="ddate" max="${S.today}"></label><button class="red" id="ddel">Delete this day</button></div></div>`;
+ v.onclick=async e=>{const t=e.target;if(t.id==="ssave"){t.disabled=true;try{const r=await call("dpr_settings_save",{settings:{annualCapacity:$("#s1").value,steamCapacity:$("#s2").value,standardMinutes:$("#s3").value,beltResetMonthly:$("#s4").checked}});S.cfg={...D.DEF,...r.settings};rebuild();toast("Settings saved.")}catch(x){toast(x.message,1)}t.disabled=false}
+  else if(t.id==="ddel"){const d=$("#ddate").value;if(!d)return toast("Choose the date to remove.",1);if(!S.recs[d])return toast("There is no entry for "+dmy(d)+".",1);if(!confirm("Delete all entries of "+dmy(d)+"? This cannot be undone."))return;t.disabled=true;
+   try{await call("dpr_delete",{date:d});delete S.recs[d];delete S.meta[d];rebuild();toast("Removed "+dmy(d)+".")}catch(x){toast(x.message,1)}t.disabled=false}}}
+document.title="Coke Oven Operation";show();
+})();

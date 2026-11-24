@@ -2,6 +2,22 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 23 Nov 2026
+**Coke Oven Operation rebuilt as the Daily Production Report (DPR) from your Excel sheet** (Worker 4.0, new website files)
+- The old Coke Oven Operation screens, settings and back end are removed (`ops.js`, `ops-logic.js`, `ops.css` and the old Worker code). The data folder is now `coke-oven-dpr/`; delete the old `coke-oven-ops/` folder in the data repo. Users and roles (`USERS_COKE_OVEN_OPS`: admin, entry, mgmt) are unchanged.
+- **Daily entry:** the same sections and headings as the Excel sheet, in the same order. Blue cells are calculated live as you type, white cells are typed. Opening stocks and initial belt readings carry over from the previous day (type a value only to correct them).
+- **Cokeoven / Self Consumption of Raw Material (MT):** the coal columns are now 1. PHCC, 2. SHCC, 3. SSCC, 4. PCI, 5. Indigenous, with TOTAL Cons. as their sum, as in the Excel formula.
+- **Reports:** Month sheet (every section, days as rows, calculated columns shaded, month total/average/last row), Day report (all sections of one date), Month summary (finished goods summary as in the Excel summary block, plus every month figure), CSV download of the whole sheet, and Print.
+- **Dashboard:** KPI cards and 11 sections in the Excel order (stock, production, dispatch, raw material, power/water/steam, delay, charging coal quality, coke quality, safety, process, belt readings) with interactive charts, tooltips, legend toggles and a month selector.
+- **Settings (admin):** annual capacity (250,000), steam capacity (82 TPH), standard running minutes (1440), monthly belt reset, and removal of a day.
+- Excel data of 1 to 20 November 2026 is loaded (`data-repo/coke-oven-dpr/`). The calculations were checked against 1,360 Excel values; the only differences are 3 cells that are typed numbers in the Excel sheet.
+
+## 21 Nov 2026
+**Login log for the whole website** (Worker 3.5, no change in the website)
+- Every sign-in attempt for every plant and section is written to the data repo: `logs/login-YYYY-MM-DD.json` at the top of the repo, one file per day (Indian date), newest entry last. There is no screen for it in the website.
+- Each entry has: Indian time (`ist`) and UTC time (`t`), plant, section, user name as typed, result (success or failed), reason for a failure (wrong password, unknown user, locked after too many wrong attempts, no valid role), role and unit for a success, IP address, country, browser, and whether a password change was required. Passwords are never written.
+- A problem with writing the log never stops a sign-in. A file holds at most 3000 entries a day.
+
 ## 20 Nov 2026
 **Back to Order closing after saving a checklist** (website only)
 - When the checklist is opened from Order closing (Checklist button), saving it returns to Order closing, where the order is ready to close. A checklist opened from the Closure report returns to the Closure report. A checklist chosen from the Checklist closing tab stays on that tab.
