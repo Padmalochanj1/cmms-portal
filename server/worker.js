@@ -1,3 +1,11 @@
+// Version 4.0, 22.11.2026
+// Coke Oven Operation rebuilt as the Daily Production Report (DPR) from the Excel sheet: folder coke-oven-dpr/, actions dpr_load, dpr_save, dpr_delete, dpr_settings_save
+// Version 3.5, 21.11.2026
+// Login log for the whole website: one file per day in the data repo, logs/login-YYYY-MM-DD.json (no screen in the website)
+// Version 3.4, 20.11.2026
+// order_detail: closure, saved checklist and extra-order record of one order (all roles), for the order details popup
+// Version 3.3, 20.11.2026
+// Order type IO (Improvement Order) added to Create order
 // Version 3.2, 19.11.2026
 // New plant RMHS, section E&I (folder rmhs-ei/, users secret USERS_RMHS_EI)
 // Version 3.1, 19.11.2026
@@ -92,7 +100,7 @@ const UNITS = {
   'coal-washery:ei': { name: 'Coal Washery E&I', folder: 'coal-washery-ei/', folderVar: 'CW_FOLDER', users: 'USERS', roles: ['admin', 'user', 'mgmt'] },   // CW_FOLDER = root keeps the data at the repo top level
   'coke-oven:ei': { name: 'Coke Oven E&I', folder: 'coke-oven-ei/', users: 'USERS_COKE_OVEN_EI', roles: ['admin', 'user', 'mgmt'] },
   'rmhs:ei': { name: 'RMHS E&I', folder: 'rmhs-ei/', users: 'USERS_RMHS_EI', roles: ['admin', 'user', 'mgmt'] },
-  'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-ops/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt'] }   // roles: admin = Administrator, entry = Data Entry, mgmt = Management
+  'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-dpr/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt'] }   // roles: admin = Administrator, entry = Data Entry, mgmt = Management
   // 'coal-washery:ops': { name: 'Coal Washery Operation', folder: 'coal-washery-ops/', users: 'USERS_COAL_WASHERY_OPS' },
 };
 const folderOf = (env, unit) => { const v = unit.folderVar && env[unit.folderVar]; return v ? (v === 'root' ? '' : String(v).replace(/\/*$/, '/')) : unit.folder; };
@@ -101,12 +109,12 @@ async function login(env, plant, section, u, p) {
   if (!unit) throw new Error('Choose a valid plant and section.');
   if (!env[unit.users]) throw new Error('This section is not set up yet.');
   const users = usersOf(env, unit), E = { ...env, F: folderOf(env, unit) }, fk = 'fail:' + key + ':' + String(u).toLowerCase(), fails = env.KV ? +(await env.KV.get(fk) || 0) : 0;
-  if (fails >= 5) throw new Error('Too many wrong attempts. Try again in 10 minutes.');
-  const bad = async () => { if (env.KV) await env.KV.put(fk, String(fails + 1), { expirationTtl: 600 }); throw new Error('Wrong username or password'); };
-  if (!Object.prototype.hasOwnProperty.call(users, u)) return bad();
+  if (fails >= 5) throw Object.assign(new Error('Too many wrong attempts. Try again in 10 minutes.'), { why: 'locked: too many wrong attempts' });
+  const bad = async why => { if (env.KV) await env.KV.put(fk, String(fails + 1), { expirationTtl: 600 }); throw Object.assign(new Error('Wrong username or password'), { why }); };
+  if (!Object.prototype.hasOwnProperty.call(users, u)) return bad('unknown user');
   const ov = ((await read(E, 'users.json')).data || {}).users?.[u];       // set by the user or by the administrator
-  if (!(ov ? await verifyPw(String(p), ov) : users[u][0] === p)) return bad();
-  if (unit.roles && !unit.roles.includes(users[u][1])) throw new Error('This user has no valid role. Use one of: ' + unit.roles.join(', ') + '.');
+  if (!(ov ? await verifyPw(String(p), ov) : users[u][0] === p)) return bad('wrong password');
+  if (unit.roles && !unit.roles.includes(users[u][1])) throw Object.assign(new Error('This user has no valid role. Use one of: ' + unit.roles.join(', ') + '.'), { why: 'no valid role' });
   const name = unit.type === 'ops' ? '' : ((await profilesOf(E))[u] || {}).name || '';
   return { token: await issue(env, u, users[u][1], key, ov && ov.mc), user: u, role: users[u][1], unit: unit.name, name, mustChange: !!(ov && ov.mc) };
 }
@@ -145,7 +153,7 @@ async function addAdditional(env, r, me) {
   const s = (x, n) => String(x == null ? '' : x).trim().slice(0, n);
   if (!DATE_RE.test(String(r.due))) throw new Error('Select the due date.');
   if (r.due < isoDay(Date.now() - 864e5)) throw new Error('The due date cannot be in the past.');
-  if (!['PM', 'CM', 'IM', 'OM'].includes(r.otype)) throw new Error('Select the type of order.');
+  if (!['PM', 'CM', 'IM', 'OM', 'IO'].includes(r.otype)) throw new Error('Select the type of order.');
   const title = s(r.title, 120); if (!title) throw new Error('Enter a job title.');
   const master = (await read(env, 'master.json')).data || {}, e = (master.equipment || []).find(x => x.id === r.eq);
   if (!e) throw new Error('Select the equipment.'); if (e.status === 'Inactive') throw new Error('This equipment is inactive.');
@@ -293,60 +301,105 @@ async function addNotif(env, r, me) {
   }
   throw new Error('The server is busy. Please try again.');
 }
-// ---------- Operation sections (Data Entry / Management / Administrator) ----------
-function clean(v, d = 0) {
-  if (v === null || typeof v === 'boolean') return v;
-  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-  if (typeof v === 'string') return v.slice(0, 500);
-  if (d > 4) return null;
-  if (Array.isArray(v)) return v.slice(0, 100).map(x => clean(x, d + 1));
-  if (typeof v === 'object') { const o = {}; for (const k of Object.keys(v).slice(0, 60)) o[String(k).slice(0, 40)] = clean(v[k], d + 1); return o; }
-  return null;
-}
-const flat = (o, p = '', m = {}) => { if (o !== null && typeof o === 'object') for (const k of Object.keys(o)) flat(o[k], p ? p + '.' + k : k, m); else m[p] = JSON.stringify(o); return m; };
-const REC_KEYS = ['date', 'shift', 'enteredBy', 'department', 'remarks', 'coal', 'coke', 'temps', 'elec', 'equip', 'inv'];
-async function opsSave(env, r, submit, reason, me) {
-  if (me.role !== 'admin' && me.role !== 'entry') throw new Error('You do not have permission to enter data.');
-  if (!r || !DATE_RE.test(String(r.date)) || !['A', 'B', 'C'].includes(r.shift)) throw new Error('Choose a valid date and shift.');
-  const rec = {}; REC_KEYS.forEach(k => { if (r[k] !== undefined) rec[k] = clean(r[k]); });
-  const path = 'records/' + rec.date + '.json';
-  for (let i = 0; i < 4; i++) {
-    const f = await read(env, path), list = f.data || [], ix = list.findIndex(x => x.shift === rec.shift), old = ix >= 0 ? list[ix] : null, now = new Date().toISOString();
-    let out;
-    if (!old) { out = { ...rec, status: submit ? 'submitted' : 'draft', createdAt: now, updatedAt: now, audit: [{ at: now, by: me.user, action: submit ? 'submitted' : 'draft created' }] }; list.push(out); }
-    else if (old.status === 'draft') { out = { ...rec, status: submit ? 'submitted' : 'draft', createdAt: old.createdAt, updatedAt: now, audit: [...old.audit, { at: now, by: me.user, action: submit ? 'submitted' : 'draft saved' }] }; list[ix] = out; }
-    else {
-      if (me.role !== 'admin') throw new Error('This date and shift is already submitted. Ask the administrator to correct it.');
-      if (String(reason || '').trim().length < 5) throw new Error('Enter a reason for the correction.');
-      const a = flat(old), b = flat(rec), ch = [];
-      for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) { if (['audit', 'status', 'createdAt', 'updatedAt', 'sample'].includes(k.split('.')[0])) continue; if (a[k] !== b[k]) ch.push({ f: k, old: a[k] ?? null, new: b[k] ?? null }); }
-      out = { ...old, ...rec, updatedAt: now, audit: [...old.audit, { at: now, by: me.user, action: 'correction', reason: String(reason).slice(0, 300), changes: ch.slice(0, 40), more: Math.max(0, ch.length - 40) }] }; list[ix] = out;
+// ---------- Coke Oven Operation: Daily Production Report (DPR) ----------
+// Data folder coke-oven-dpr/ :  settings.json = plant settings,  data/YYYY-MM.json = { days: { 'YYYY-MM-DD': { v: { field: value }, by, at, ed: [ { by, at } ] } } }
+// Only the typed values are stored; every calculated value is worked out in the website. Roles: admin = all, entry = enter and correct data, mgmt = view only.
+const DPR_TEXT = ['dpR', 'dbR', 'j1r', 'j8r'];
+const DPR_DEF = { annualCapacity: 250000, steamCapacity: 82, standardMinutes: 1440, beltResetMonthly: true };
+const istToday = () => new Date(Date.now() + 19800000).toISOString().slice(0, 10);
+const monthsFromTo = (a, b) => { const out = []; let y = +a.slice(0, 4), m = +a.slice(5); const ey = +b.slice(0, 4), em = +b.slice(5); while (y < ey || (y === ey && m <= em)) { out.push(y + '-' + String(m).padStart(2, '0')); if (++m > 12) { m = 1; y++; } } return out; };
+async function dprSettings(env) { return { ...DPR_DEF, ...(((await read(env, 'settings.json')).data) || {}) }; }
+async function dprHandle(env, b, me) {
+  const canWrite = me.role === 'admin' || me.role === 'entry';
+  if (b.action === 'dpr_load') {                // every month from the first month with data up to the month asked; 30 months at most (30 reads, the limit is 50)
+    const set = await dprSettings(env), to = /^\d{4}-\d{2}$/.test(String(b.to)) ? b.to : istToday().slice(0, 7);
+    let ms = monthsFromTo(set.firstMonth && set.firstMonth <= to ? set.firstMonth : to, to), truncated = false;
+    if (ms.length > 30) { ms = ms.slice(-30); truncated = true; }
+    const months = {}; await Promise.all(ms.map(async m => { const d = (await read(env, 'data/' + m + '.json')).data; if (d && d.days) months[m] = d.days; }));
+    return { settings: set, months, today: istToday(), role: me.role, truncated };
+  }
+  if (b.action === 'dpr_save') {
+    if (!canWrite) throw new Error('You do not have permission to enter data.');
+    const date = String(b.date);
+    if (!DATE_RE.test(date)) throw new Error('Choose a valid date.');
+    if (date > new Date(Date.parse(istToday()) + 864e5).toISOString().slice(0, 10)) throw new Error('A future date cannot be entered.');
+    const v = {}, src = b.v && typeof b.v === 'object' ? b.v : {}; let n = 0;
+    for (const k of Object.keys(src)) {
+      if (!/^[a-z][a-zA-Z0-9]{1,5}$/.test(k)) continue; if (++n > 260) break;
+      const x = src[k];
+      if (DPR_TEXT.includes(k)) { const t = String(x == null ? '' : x).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 300); if (t) v[k] = t; }
+      else if (x !== '' && x != null) { const num = Number(x); if (!Number.isFinite(num) || Math.abs(num) > 1e9) throw new Error('Check the value of ' + k + '.'); v[k] = Math.round(num * 1e6) / 1e6; }
     }
-    const res = await write(env, path, list, f.sha, 'ops ' + rec.date + ' ' + rec.shift);
-    if (res.ok) return { ok: true, status: out.status };
-    if (res.status !== 409 && res.status !== 422) throw new Error('GitHub write failed: ' + res.status);
+    if (!Object.keys(v).length) throw new Error('Nothing to save for this date.');
+    const path = 'data/' + date.slice(0, 7) + '.json';
+    for (let i = 0; i < 4; i++) {
+      const f = await read(env, path), d = f.data && f.data.days ? f.data : { days: {} }, old = d.days[date], at = new Date().toISOString();
+      if (old && b.base && old.at !== b.base && !b.force) throw new Error('This date was saved by ' + old.by + ' at ' + String(old.at).slice(11, 16) + ' UTC after you opened it. Reload the date to see their entry.');
+      d.days[date] = { v, by: me.user, at, ed: old ? [...(old.ed || []), { by: old.by, at: old.at }].slice(-20) : [] };
+      const r = await write(env, path, d, f.sha, 'DPR ' + date + ' by ' + me.user);
+      if (r.ok) {
+        const set = await dprSettings(env);
+        if (!set.firstMonth || date.slice(0, 7) < set.firstMonth) { const sf = await read(env, 'settings.json'); await write(env, 'settings.json', { ...(sf.data || {}), firstMonth: date.slice(0, 7) }, sf.sha, 'DPR first month'); }
+        return { ok: true, at };
+      }
+      if (r.status !== 409 && r.status !== 422) throw new Error('GitHub write failed: ' + r.status);
+    }
+    throw new Error('The server is busy. Please try again.');
   }
-  throw new Error('The server is busy. Please try again.');
-}
-async function opsHandle(env, b, me) {
-  if (b.action === 'ops_range') {            // up to 31 days = 31 reads (free plan allows 50)
-    if (!DATE_RE.test(String(b.from)) || !DATE_RE.test(String(b.to))) throw new Error('Invalid date');
-    const days = []; for (let t = Date.parse(b.from); t <= Date.parse(b.to); t += 864e5) days.push(new Date(t).toISOString().slice(0, 10));
-    if (!days.length || days.length > 31) throw new Error('Choose a period of 1 to 31 days.');
-    const recs = []; await Promise.all(days.map(async d => { recs.push(...((await read(env, 'records/' + d + '.json')).data || [])); }));
-    return { records: me.role === 'mgmt' ? recs.filter(r => r.status === 'submitted') : recs, config: (await read(env, 'config.json')).data, role: me.role };
-  }
-  if (b.action === 'ops_save') return opsSave(env, b.rec, !!b.submit, b.reason, me);
-  if (b.action === 'ops_config_save') {
+  if (b.action === 'dpr_delete') {
     if (me.role !== 'admin') throw new Error('Admin access only.');
-    const c = clean(b.config); if (!c || typeof c !== 'object' || !Array.isArray(c.equipment)) throw new Error('Invalid settings');
-    const f = await read(env, 'config.json'), r = await write(env, 'config.json', c, f.sha, 'config by ' + me.user);
-    if (!r.ok) throw new Error('Settings were changed by someone else. Reload and try again.'); return { ok: true };
+    const date = String(b.date); if (!DATE_RE.test(date)) throw new Error('Choose a valid date.');
+    const path = 'data/' + date.slice(0, 7) + '.json';
+    for (let i = 0; i < 4; i++) {
+      const f = await read(env, path); if (!f.data || !f.data.days || !f.data.days[date]) return { ok: true };
+      delete f.data.days[date]; const r = await write(env, path, f.data, f.sha, 'DPR delete ' + date + ' by ' + me.user);
+      if (r.ok) return { ok: true }; if (r.status !== 409 && r.status !== 422) throw new Error('GitHub write failed: ' + r.status);
+    }
+    throw new Error('The server is busy. Please try again.');
+  }
+  if (b.action === 'dpr_settings_save') {
+    if (me.role !== 'admin') throw new Error('Admin access only.');
+    const c = b.settings || {}, num = (x, lo, hi, nm) => { const y = Number(x); if (!Number.isFinite(y) || y < lo || y > hi) throw new Error('Check ' + nm + '.'); return y; };
+    const out = { annualCapacity: num(c.annualCapacity, 1, 1e8, 'the annual capacity'), steamCapacity: num(c.steamCapacity, 1, 1e5, 'the steam capacity'), standardMinutes: num(c.standardMinutes, 1, 1440, 'the standard running minutes'), beltResetMonthly: !!c.beltResetMonthly };
+    for (let i = 0; i < 4; i++) {
+      const f = await read(env, 'settings.json'), r = await write(env, 'settings.json', { ...(f.data || {}), ...out }, f.sha, 'DPR settings by ' + me.user);
+      if (r.ok) return { ok: true, settings: { ...DPR_DEF, ...(f.data || {}), ...out } }; if (r.status !== 409 && r.status !== 422) throw new Error('GitHub write failed: ' + r.status);
+    }
+    throw new Error('The server is busy. Please try again.');
   }
   throw new Error('Unknown action');
 }
-async function handle(env, b) {
-  if (b.action === 'login') return login(env, b.plant || 'coal-washery', b.section || 'ei', b.username, b.password);
+// ---------- Login log: logs/login-YYYY-MM-DD.json at the top of the data repo, one file per day (Indian date), newest entry last. Passwords are never written. ----------
+async function logLogin(env, entry) {
+  try {
+    const ist = new Date(Date.now() + 19800000).toISOString(), path = 'logs/login-' + ist.slice(0, 10) + '.json', E = { ...env, F: '' };
+    entry = { ist: ist.slice(0, 19).replace('T', ' '), t: new Date().toISOString(), ...entry };
+    for (let i = 0; i < 5; i++) {
+      const f = await read(E, path), list = Array.isArray(f.data) ? f.data : [];
+      if (list.length >= 3000) return;                        // safety limit per day
+      list.push(entry);
+      const r = await write(E, path, list, f.sha, 'login log ' + ist.slice(0, 10));
+      if (r.ok) return;
+      if (r.status !== 409 && r.status !== 422) return;
+    }
+  } catch (_) { /* the log must never stop a sign-in */ }
+}
+async function loginLogged(env, b, req, ctx) {
+  const clean = (x, n) => String(x == null ? '' : x).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+  const h = req && req.headers, base = { plant: clean(b.plant || 'coal-washery', 40), section: clean(b.section || 'ei', 20), user: clean(b.username, 40),
+    ip: h ? clean(h.get('CF-Connecting-IP'), 45) : '', country: req && req.cf ? clean(req.cf.country, 4) : '', ua: h ? clean(h.get('User-Agent'), 140) : '' };
+  const put = e => { const p = logLogin(env, { ...base, ...e }); if (ctx && ctx.waitUntil) ctx.waitUntil(p); return p; };
+  try {
+    const r = await login(env, b.plant || 'coal-washery', b.section || 'ei', b.username, b.password);
+    await put({ result: 'success', role: r.role, unit: r.unit, mustChange: !!r.mustChange });
+    return r;
+  } catch (x) {
+    if (x && x.why) await put({ result: 'failed', reason: x.why });
+    throw x;
+  }
+}
+async function handle(env, b, req, ctx) {
+  if (b.action === 'login') return loginLogged(env, b, req, ctx);
   const me = await who(env, b.token);
   if (!me.unit) throw new Error('Session expired. Please sign in again.');
   if (me.mc && b.action !== 'change_password') throw new Error('Please change your password first.');
@@ -355,7 +408,7 @@ async function handle(env, b) {
   if (b.action === 'change_password') return changePassword(env, b, me);
   if (b.action === 'admin_users') return adminUsers(env, me);
   if (b.action === 'admin_reset_password') return adminReset(env, b, me);
-  if (me.unit.type === 'ops') return opsHandle(env, b, me);      // every file for this plant and section lives under its own folder
+  if (me.unit.type === 'ops') return dprHandle(env, b, me);      // every file for this plant and section lives under its own folder
   if (b.action === 'notif_list') { if (!/^\d{4}-\d{2}$/.test(String(b.month))) throw new Error('Invalid month'); return { list: (await read(env, 'notifications/' + b.month + '.json')).data || [] }; }
   if (b.action === 'reliability_range') {      // read-only, every role; 31 days at most per request
     if (!DATE_RE.test(String(b.from)) || !DATE_RE.test(String(b.to))) throw new Error('Invalid date');
@@ -369,6 +422,13 @@ async function handle(env, b) {
     const orders = ex.map(x => { const c = cl[x.no], a1 = c ? hm(c.start) : null, b1 = c ? hm(c.end) : null;
       return { no: x.no, due: x.due, eq: x.eq, name: x.name, area: x.loc, kind: x.kind, otype: x.otype || '', state: !c ? 'open' : c.action === 'Closed' ? 'closed' : 'deferred', mins: c && c.action === 'Closed' && a1 != null && b1 != null ? (b1 >= a1 ? b1 - a1 : b1 + 1440 - a1) : null }; });
     return { breakdowns, orders };
+  }
+  if (b.action === 'order_detail') {            // read-only, every role
+    if (!DATE_RE.test(String(b.due)) || !/^[A-Za-z0-9_.-]{3,70}$/.test(String(b.no))) throw new Error('Invalid order.');
+    const closure = ((await read(env, 'closures/' + b.due + '.json')).data || []).find(x => x.no === b.no) || null;
+    const measurement = ((await read(env, 'measurements/' + b.due + '.json')).data || []).find(x => x.no === b.no) || null;
+    const extra = (await readExtras(env, [b.due.slice(0, 7)])).find(x => x.no === b.no) || null;
+    return { closure, measurement, extra };
   }
   if (b.action === 'profile_get') return profileGet(env, me);
   if (b.action === 'profile_save') return profileSave(env, b, me);
@@ -416,16 +476,16 @@ async function handle(env, b) {
   }
   throw new Error('Unknown action');
 }
-async function route(req, env) {
+async function route(req, env, ctx) {
     const cors = { 'Access-Control-Allow-Origin': env.ALLOWED_ORIGIN || '*', 'Access-Control-Allow-Headers': '*', 'Access-Control-Allow-Methods': 'POST, GET, OPTIONS' };
     const out = o => new Response(JSON.stringify(o), { headers: { ...cors, 'Content-Type': 'application/json' } });
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     if (req.method === 'GET') return out({ ok: true, status: 'running' });
-    try { return out(await handle(env, await req.json())); } catch (x) { return out({ error: String(x.message || x) }); }
+    try { return out(await handle(env, await req.json(), req, ctx)); } catch (x) { return out({ error: String(x.message || x) }); }
   }
 export default {          // always answer in JSON, even if something unexpected fails
-  async fetch(req, env) {
-    try { return await route(req, env); }
+  async fetch(req, env, ctx) {
+    try { return await route(req, env, ctx); }
     catch (x) { return new Response(JSON.stringify({ error: String(x.message || x) }), { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }); }
   }
 };
