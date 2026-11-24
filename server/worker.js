@@ -1,3 +1,8 @@
+// Version 4.1, 24.11.2026
+// New section Mechanical for Coal Washery and Coke Oven: units coal-washery:mech and coke-oven:mech, own users, own data folders, same pages and logic as E&I.
+// A Mechanical section without master.json starts with an empty master, so people can sign in before the equipment data is uploaded.
+// Version 4.0.1, 24.11.2026
+// Fix: the shared clean() helper was removed with the old Operation code; saving a checklist failed with 'clean is not defined'
 // Version 4.0, 22.11.2026
 // Coke Oven Operation rebuilt as the Daily Production Report (DPR) from the Excel sheet: folder coke-oven-dpr/, actions dpr_load, dpr_save, dpr_delete, dpr_settings_save
 // Version 3.5, 21.11.2026
@@ -100,6 +105,8 @@ const UNITS = {
   'coal-washery:ei': { name: 'Coal Washery E&I', folder: 'coal-washery-ei/', folderVar: 'CW_FOLDER', users: 'USERS', roles: ['admin', 'user', 'mgmt'] },   // CW_FOLDER = root keeps the data at the repo top level
   'coke-oven:ei': { name: 'Coke Oven E&I', folder: 'coke-oven-ei/', users: 'USERS_COKE_OVEN_EI', roles: ['admin', 'user', 'mgmt'] },
   'rmhs:ei': { name: 'RMHS E&I', folder: 'rmhs-ei/', users: 'USERS_RMHS_EI', roles: ['admin', 'user', 'mgmt'] },
+  'coal-washery:mech': { name: 'Coal Washery Mechanical', folder: 'coal-washery-mech/', users: 'USERS_COAL_WASHERY_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
+  'coke-oven:mech': { name: 'Coke Oven Mechanical', folder: 'coke-oven-mech/', users: 'USERS_COKE_OVEN_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-dpr/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt'] }   // roles: admin = Administrator, entry = Data Entry, mgmt = Management
   // 'coal-washery:ops': { name: 'Coal Washery Operation', folder: 'coal-washery-ops/', users: 'USERS_COAL_WASHERY_OPS' },
 };
@@ -301,6 +308,16 @@ async function addNotif(env, r, me) {
   }
   throw new Error('The server is busy. Please try again.');
 }
+// Cleans a record before it is saved (used for closures and saved checklists): limits text, depth and size
+function clean(v, d = 0) {
+  if (v === null || typeof v === 'boolean') return v;
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
+  if (typeof v === 'string') return v.slice(0, 500);
+  if (d > 4) return null;
+  if (Array.isArray(v)) return v.slice(0, 100).map(x => clean(x, d + 1));
+  if (typeof v === 'object') { const o = {}; for (const k of Object.keys(v).slice(0, 60)) o[String(k).slice(0, 40)] = clean(v[k], d + 1); return o; }
+  return null;
+}
 // ---------- Coke Oven Operation: Daily Production Report (DPR) ----------
 // Data folder coke-oven-dpr/ :  settings.json = plant settings,  data/YYYY-MM.json = { days: { 'YYYY-MM-DD': { v: { field: value }, by, at, ed: [ { by, at } ] } } }
 // Only the typed values are stored; every calculated value is worked out in the website. Roles: admin = all, entry = enter and correct data, mgmt = view only.
@@ -437,7 +454,8 @@ async function handle(env, b, req, ctx) {
   if (['load', 'history'].includes(b.action) && !DATE_RE.test(String(b.date))) throw new Error('Invalid date');
   if (['closure', 'measurement'].includes(b.action) && !DATE_RE.test(String(b.rec && b.rec.due))) throw new Error('Invalid date');
   if (b.action === 'load') {
-    const m = (await read(env, 'master.json')).data;
+    let m = (await read(env, 'master.json')).data;
+    if (!m && me.unit.blank) m = { settings: { freqs: ['Daily', 'Weekly', 'Fortnightly', 'Monthly', 'Quarterly', 'Half-Yearly', 'Yearly'], intervals: [1, 7, 14, 30, 90, 180, 365], defaultStart: '2026-01-01' }, types: [], areas: {}, ticks: {}, equipment: [], library: [] };
     if (!m) throw new Error((env.F || '') + 'master.json not found in repo "' + env.GH_REPO + '". Check GH_REPO, that master.json is in the repo root, and that the token has access to this repo.');
     return { master: m, closures: (await read(env, 'closures/' + b.date + '.json')).data || [], measurements: ((await read(env, 'measurements/' + b.date + '.json')).data || []).map(x => ({ no: x.no })),
       names: Object.fromEntries(Object.entries(await profilesOf(env)).filter(([, v]) => v && v.name).map(([k, v]) => [k, v.name])),

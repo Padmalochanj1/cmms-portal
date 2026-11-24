@@ -2,6 +2,16 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 24 Nov 2026 (2)
+**New section Mechanical for Coal Washery and Coke Oven** (Worker 4.1, new website files)
+- Both plants now show E&I, Mechanical and Operation on the sign-in page. Each Mechanical section is separate from E&I: its own users (secrets `USERS_COAL_WASHERY_MECH` and `USERS_COKE_OVEN_MECH`), its own data folder (`coal-washery-mech/`, `coke-oven-mech/`), orders, notifications, checklists, profiles and login history.
+- Same pages, layout and logic as E&I. Equipment types, areas and equipment are loaded later by replacing the section's `master.json` with the JSON converted from Excel (layout in `MASTER-FORMAT.md`). Until then every page opens with an empty list.
+
+## 24 Nov 2026
+**Fix: saving a checklist failed with "clean is not defined"** (Worker 4.0.1, no website change)
+- When the old Coke Oven Operation code was removed in Worker 4.0, a helper that E&I also uses to save closures and checklists was removed with it. It is restored. Saving a checklist and closing an order work again in all E&I plants; checked with order `INSP_WEEK-0044-261124`.
+- Worker 4.0 must be replaced by 4.0.1; only the Worker needs to be redeployed.
+
 ## 23 Nov 2026
 **Coke Oven Operation rebuilt as the Daily Production Report (DPR) from your Excel sheet** (Worker 4.0, new website files)
 - The old Coke Oven Operation screens, settings and back end are removed (`ops.js`, `ops-logic.js`, `ops.css` and the old Worker code). The data folder is now `coke-oven-dpr/`; delete the old `coke-oven-ops/` folder in the data repo. Users and roles (`USERS_COKE_OVEN_OPS`: admin, entry, mgmt) are unchanged.
