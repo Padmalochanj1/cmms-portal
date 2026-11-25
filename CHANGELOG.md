@@ -2,6 +2,13 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 25 Nov 2026
+**Excel upload in Coke Oven Operation > Daily entry** (website only, no Worker change)
+- New button "Upload DPR Excel" next to the date. Choose the date, press the button and pick your DPR Excel sheet (.xlsx, same layout as the sheet you gave me). The row of that date is read in the browser and the entry screen is filled; the file is not sent anywhere.
+- If the date is not in the sheet, or its row has no data, a message pops up: "Please upload updated DPR sheet".
+- The user then checks the values, changes anything if required and presses Save. Nothing is saved by the upload itself. Opening stock and belt initial readings are taken only where they are typed in the Excel sheet; the five coal columns are the sum of the Excel coal columns of each coal type.
+- A file that is not in the DPR layout is refused with a message.
+
 ## 24 Nov 2026 (2)
 **New section Mechanical for Coal Washery and Coke Oven** (Worker 4.1, new website files)
 - Both plants now show E&I, Mechanical and Operation on the sign-in page. Each Mechanical section is separate from E&I: its own users (secrets `USERS_COAL_WASHERY_MECH` and `USERS_COKE_OVEN_MECH`), its own data folder (`coal-washery-mech/`, `coke-oven-mech/`), orders, notifications, checklists, profiles and login history.
