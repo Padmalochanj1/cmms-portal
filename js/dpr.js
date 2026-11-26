@@ -1,7 +1,8 @@
 // Coke Oven Operation: Daily Production Report (DPR). Pages: Dashboard, Daily entry, Reports, Settings.
 (()=>{
-const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole||"mgmt",UN=sessionStorage.cmmsUnit||"Coke Oven Operation";
-if(!T||sessionStorage.cmmsSection!=="ops"){location.replace(T?"app.html":"../index.html");return}
+const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,HOD=sessionStorage.cmmsSection==="hod",R=HOD?"mgmt":sessionStorage.cmmsRole||"mgmt",UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" Operation":(sessionStorage.cmmsUnit||"Coke Oven Operation");
+if(!T||(sessionStorage.cmmsSection!=="ops"&&!(HOD&&new URLSearchParams(location.search).get("sec")==="ops"))){location.replace(HOD?"hod.html":T?"app.html":"../index.html");return}
+if(HOD&&window.HODBAR)HODBAR.mount("ops");
 const esc=CH.esc,fmt=CH.fmt,dmy=s=>s?String(s).split("-").reverse().join("/"):"",addDay=D.addDay;
 const todayISO=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
 const lastDay=m=>m+"-"+String(new Date(Date.UTC(+m.slice(0,4),+m.slice(5),0)).getUTCDate()).padStart(2,"0"),daysIn=m=>+lastDay(m).slice(8);
@@ -12,7 +13,7 @@ const S={cfg:{...D.DEF},recs:{},meta:{},rows:[],to:"",loaded:false,today:todayIS
 const ROUTES=[["dashboard","Dashboard"]].concat(R!=="mgmt"?[["entry","Daily entry"]]:[]).concat([["report","Reports"]]).concat(R==="admin"?[["settings","Settings"]]:[]);
 let route=ROUTES.some(r=>r[0]===(location.hash||"").slice(1))?location.hash.slice(1):"dashboard";
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
- try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
+ try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...(HOD?{sec:"ops"}:{}),...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function load(to,force){to=to||S.month;if(!force&&S.loaded&&S.to===to)return;const d=await call("dpr_load",{to});S.cfg={...D.DEF,...d.settings};S.recs={};S.meta={};
  Object.keys(d.months).forEach(m=>Object.entries(d.months[m]).forEach(([dt,x])=>{S.recs[dt]=x.v;S.meta[dt]={by:x.by,at:x.at}}));S.today=d.today||S.today;S.truncated=d.truncated;S.to=to;S.loaded=true;rebuild(lastDay(to))}
@@ -20,7 +21,7 @@ function rebuild(to){S.rows=D.build(S.recs,to||lastDay(S.to),S.cfg)}
 const monthRows=m=>S.rows.filter(r=>r.date.startsWith(m)),dv=(r,k)=>r.has?D.val(r,k):null,sv=(r,k)=>D.val(r,k);
 const FBY=k=>D.BY[k];
 async function show(force){const v=$("#view");v.onclick=v.oninput=v.onchange=null;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
- $("#sub").textContent=`${U} (${{admin:"Administrator",entry:"Data entry",mgmt:"Management"}[R]||R})`;$("#unitH").textContent=UN;
+ $("#sub").textContent=HOD?`${U} (HOD view, view only)`:`${U} (${{admin:"Administrator",entry:"Data entry",mgmt:"Management"}[R]||R})`;$("#unitH").textContent=UN;
  try{const m=route==="entry"?S.date.slice(0,7):route==="report"&&S.rtab==="day"?S.rdate.slice(0,7):S.month;await load(m,force);({dashboard:dashboard,entry:entry,report:report,settings:settings}[route]||dashboard)()}catch(e){v.innerHTML=`<p class="empty">Could not load: ${esc(e.message)} <button id="retry" class="ghost">Try again</button></p>`;const b=$("#retry");if(b)b.onclick=()=>show(true)}}
 const go=r=>{if(S.dirty&&route==="entry"&&r!=="entry"&&!confirm("You have unsaved entries for "+dmy(S.date)+". Leave without saving?"))return;S.dirty=false;route=r;location.hash=r;show()};
 $("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};$("#refresh").onclick=()=>{if(S.dirty&&!confirm("Unsaved entries will be lost. Reload anyway?"))return;S.dirty=false;show(true)};

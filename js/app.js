@@ -1,19 +1,20 @@
 
 (()=>{
-const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,R=sessionStorage.cmmsRole;
+const C=window.CMMS_CONFIG,L=window.CMMS,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,HOD=sessionStorage.cmmsSection==="hod",SEC=HOD?(new URLSearchParams(location.search).get("sec")||""):"",R=HOD?"mgmt":sessionStorage.cmmsRole;
 if(!T){location.replace("../index.html");return}
+if(HOD&&(!SEC||SEC==="ops")){location.replace(SEC==="ops"?"ops.html?sec=ops":"hod.html");return}
 if(sessionStorage.cmmsSection==="ops"){location.replace("ops.html");return}
-const UN=sessionStorage.cmmsUnit||"Coal Washery E&I";$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
+const SECN={ei:"E&I",mech:"Mechanical",ops:"Operation"},UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" "+(SECN[SEC]||SEC):(sessionStorage.cmmsUnit||"Coal Washery E&I");if(HOD&&window.HODBAR)HODBAR.mount(SEC);$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",fromClosing=false,items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"],["reliability","MTTR / MTBF"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder","reliability"].includes(r[0])):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
+let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"],["reliability","MTTR / MTBF"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder","reliability"].includes(r[0])&&!(HOD&&r[0]==="neworder")):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
-async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
+async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...(HOD?{sec:SEC}:{}),...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 async function load(){const d=await call("load",{date:L.iso(TD)});if(!d.master)throw new Error("No data received from the server.");M=d.master;EX=d.extras||[];NAMES=d.names||{};NM=NAMES[U]||U;sessionStorage.cmmsName=NAMES[U]||"";cl=Object.fromEntries(d.closures.map(c=>[c.no,c]));ms=Object.fromEntries(d.measurements.map(m=>[m.no,1]));
- $("#sub").textContent=`${NM}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
+ $("#sub").textContent=`${NM}${HOD?" (HOD view, view only)":""}  |  Operational date ${L.iso(TD).split("-").reverse().join("/")}`;draw()}
 const KL={resched:"Rescheduled",additional:"Additional",attention:"Attention action"},OTYPES={PM:"Preventive Maintenance",CM:"Corrective Maintenance",IM:"Inspection / Lubrication / Compliance",OM:"Overhauling / Refurbishment",IO:"Improvement Order"};
 const toOrder=x=>({no:x.no,e:M.equipment.find(e=>e.id===x.eq)||{id:x.eq,name:x.name,type:x.type||"",loc:x.loc||"",crit:x.crit||""},ix:-1,fi:-1,freq:x.freq,due:L.dn(x.due),extra:x});
 const ordersOn=t=>L.orders(M,t).concat(EX.filter(x=>x.due===L.iso(t)).map(toOrder));

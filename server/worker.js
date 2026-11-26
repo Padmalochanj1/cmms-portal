@@ -1,3 +1,5 @@
+// Version 4.2, 26.11.2026
+// HOD sign-in for each plant (units coal-washery:hod and coke-oven:hod, secrets USERS_COAL_WASHERY_HOD and USERS_COKE_OVEN_HOD): read-only (management) access to every section of the plant
 // Version 4.1, 24.11.2026
 // New section Mechanical for Coal Washery and Coke Oven: units coal-washery:mech and coke-oven:mech, own users, own data folders, same pages and logic as E&I.
 // A Mechanical section without master.json starts with an empty master, so people can sign in before the equipment data is uploaded.
@@ -105,6 +107,8 @@ const UNITS = {
   'coal-washery:ei': { name: 'Coal Washery E&I', folder: 'coal-washery-ei/', folderVar: 'CW_FOLDER', users: 'USERS', roles: ['admin', 'user', 'mgmt'] },   // CW_FOLDER = root keeps the data at the repo top level
   'coke-oven:ei': { name: 'Coke Oven E&I', folder: 'coke-oven-ei/', users: 'USERS_COKE_OVEN_EI', roles: ['admin', 'user', 'mgmt'] },
   'rmhs:ei': { name: 'RMHS E&I', folder: 'rmhs-ei/', users: 'USERS_RMHS_EI', roles: ['admin', 'user', 'mgmt'] },
+  'coal-washery:hod': { name: 'Coal Washery HOD', folder: 'coal-washery-hod/', users: 'USERS_COAL_WASHERY_HOD', roles: ['hod'], hod: true, plant: 'coal-washery', sections: ['ei', 'mech'] },
+  'coke-oven:hod': { name: 'Coke Oven HOD', folder: 'coke-oven-hod/', users: 'USERS_COKE_OVEN_HOD', roles: ['hod'], hod: true, plant: 'coke-oven', sections: ['ei', 'mech', 'ops'] },
   'coal-washery:mech': { name: 'Coal Washery Mechanical', folder: 'coal-washery-mech/', users: 'USERS_COAL_WASHERY_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:mech': { name: 'Coke Oven Mechanical', folder: 'coke-oven-mech/', users: 'USERS_COKE_OVEN_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-dpr/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt'] }   // roles: admin = Administrator, entry = Data Entry, mgmt = Management
@@ -415,14 +419,21 @@ async function loginLogged(env, b, req, ctx) {
     throw x;
   }
 }
+const HOD_READ = ['load', 'range', 'history', 'compliance_range', 'reliability_range', 'order_detail', 'notif_list', 'dpr_load'];   // what an HOD may ask for
 async function handle(env, b, req, ctx) {
   if (b.action === 'login') return loginLogged(env, b, req, ctx);
-  const me = await who(env, b.token);
+  let me = await who(env, b.token);
   if (!me.unit) throw new Error('Session expired. Please sign in again.');
   if (me.mc && b.action !== 'change_password') throw new Error('Please change your password first.');
   env = { ...env, F: folderOf(env, me.unit) };
   if (me.role === 'mgmt' && me.unit.type !== 'ops' && ['closure', 'measurement', 'notif_add'].includes(b.action)) throw new Error('Management users have view-only access.');
   if (b.action === 'change_password') return changePassword(env, b, me);
+  if (me.unit.hod) {                              // HOD: the sections of the plant, read only, as a management user of the section asked for
+    const sec = String(b.sec || ''), tu = UNITS[me.unit.plant + ':' + sec];
+    if (!tu || tu.hod || !me.unit.sections.includes(sec)) throw new Error('Choose a section.');
+    if (!HOD_READ.includes(b.action)) throw new Error('HOD access is view only.');
+    me = { ...me, unit: tu, role: 'mgmt' }; env = { ...env, F: folderOf(env, tu) };
+  }
   if (b.action === 'admin_users') return adminUsers(env, me);
   if (b.action === 'admin_reset_password') return adminReset(env, b, me);
   if (me.unit.type === 'ops') return dprHandle(env, b, me);      // every file for this plant and section lives under its own folder
