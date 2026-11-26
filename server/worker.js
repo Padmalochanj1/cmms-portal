@@ -126,7 +126,7 @@ async function login(env, plant, section, u, p) {
   const ov = ((await read(E, 'users.json')).data || {}).users?.[u];       // set by the user or by the administrator
   if (!(ov ? await verifyPw(String(p), ov) : users[u][0] === p)) return bad('wrong password');
   if (unit.roles && !unit.roles.includes(users[u][1])) throw Object.assign(new Error('This user has no valid role. Use one of: ' + unit.roles.join(', ') + '.'), { why: 'no valid role' });
-  const name = unit.type === 'ops' ? '' : ((await profilesOf(E))[u] || {}).name || '';
+  const name = ((await profilesOf(E))[u] || {}).name || '';
   return { token: await issue(env, u, users[u][1], key, ov && ov.mc), user: u, role: users[u][1], unit: unit.name, name, mustChange: !!(ov && ov.mc) };
 }
 const gh = (env, method, path, body) => fetch('https://api.github.com/repos/' + env.GH_REPO + '/contents/' + path, { method, body: body && JSON.stringify(body),
@@ -436,6 +436,9 @@ async function handle(env, b, req, ctx) {
   }
   if (b.action === 'admin_users') return adminUsers(env, me);
   if (b.action === 'admin_reset_password') return adminReset(env, b, me);
+  // Profiles are shared across E&I, Mechanical and Operation; each section stores its own profiles.json.
+  if (b.action === 'profile_get') return profileGet(env, me);
+  if (b.action === 'profile_save') return profileSave(env, b, me);
   if (me.unit.type === 'ops') return dprHandle(env, b, me);      // every file for this plant and section lives under its own folder
   if (b.action === 'notif_list') { if (!/^\d{4}-\d{2}$/.test(String(b.month))) throw new Error('Invalid month'); return { list: (await read(env, 'notifications/' + b.month + '.json')).data || [] }; }
   if (b.action === 'reliability_range') {      // read-only, every role; 31 days at most per request
@@ -458,8 +461,6 @@ async function handle(env, b, req, ctx) {
     const extra = (await readExtras(env, [b.due.slice(0, 7)])).find(x => x.no === b.no) || null;
     return { closure, measurement, extra };
   }
-  if (b.action === 'profile_get') return profileGet(env, me);
-  if (b.action === 'profile_save') return profileSave(env, b, me);
   if (b.action === 'notif_add') return addNotif(env, b.rec, me);
   if (b.action === 'order_add') return addAdditional(env, b.rec, me);       // every role, including Management
   if (['load', 'history'].includes(b.action) && !DATE_RE.test(String(b.date))) throw new Error('Invalid date');
