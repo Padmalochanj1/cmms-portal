@@ -1,10 +1,20 @@
+
+
+
+
+
+
+
+
 // HOD overview: one screen with the state of every section of the plant (E&I, Mechanical, Operation). Everything is read only.
 (()=>{
 const C=window.CMMS_CONFIG,L=window.CMMS,D=window.DPR,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser;
 if(!T||sessionStorage.cmmsSection!=="hod"){location.replace("../index.html");return}
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])),fmt=(v,d=0)=>v==null||!Number.isFinite(v)?"–":Number(v).toLocaleString("en-IN",{maximumFractionDigits:d,minimumFractionDigits:0}),dmy=s=>s?String(s).split("-").reverse().join("/"):"";
 const unit=String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,""),P=window.CMMS_PLANTS||[],plant=P.find(p=>p.id===sessionStorage.cmmsPlant)||P.find(p=>p.name===unit)||{name:unit,sections:[]};
-const SECS=plant.sections.filter(s=>s.id!=="hod"&&!s.soon),soon=plant.sections.filter(s=>s.soon);
+// Keep the HOD navigation buttons and dashboard cards in the requested order.
+const SECTION_ORDER={ops:0,ei:1,mech:2};
+const SECS=plant.sections.filter(s=>s.id!=="hod"&&!s.soon).sort((a,b)=>(SECTION_ORDER[a.id]??99)-(SECTION_ORDER[b.id]??99)),soon=plant.sections.filter(s=>s.soon);
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
@@ -34,3 +44,7 @@ async function show(){$("#unitH").textContent=plant.name+": HOD overview";$("#su
  const out=await Promise.all(SECS.map(s=>(s.id==="ops"?oper(s.id):maint(s.id)).then(k=>card(s,k),e=>card(s,null,e.message))));v.querySelector(".hgrid").innerHTML=out.join("")}
 $("#refresh").onclick=show;show();
 })();
+
+
+
+
