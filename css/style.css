@@ -1,14 +1,14 @@
 [hidden]{display:none!important}
 :root{--ink:#1d2830;--mut:#5d6b75;--bg:#f1f5f9;--pan:#fff;--line:#cdd5db;--pri:#0f4c5c;--ok:#1b7f4b;--warn:#a85f00;--bad:#b3261e}
 
-/* E&I and Mechanical users: use the same green Operation identity across the full section UI. */
-:root[data-section-theme="operation"]{--pri:#1b7f4b;--ok:#1b7f4b;--warn:#a85f00}
-:root[data-section-theme="operation"] header{background:linear-gradient(100deg,#1b7f4b,#27ae60);color:#fff;border-bottom:3px solid #146c3e}
-:root[data-section-theme="operation"] header p{color:rgba(255,255,255,.88)}
-:root[data-section-theme="operation"] header a.btn{color:#fff;border-color:rgba(255,255,255,.55)}
-:root[data-section-theme="operation"] header button.ghost{color:#fff;border-color:rgba(255,255,255,.55)}
-:root[data-section-theme="operation"] nav button.on{background:#e6f7ee;color:#146c3e}
-:root[data-section-theme="operation"] nav button{color:#1b7f4b}
+/* E&I and Mechanical use a Facebook-inspired blue identity for every user. */
+:root[data-section-theme="facebook"]{--pri:#1877f2;--ok:#1b7f4b;--warn:#a85f00}
+:root[data-section-theme="facebook"] header{background:linear-gradient(100deg,#0866ff,#1877f2);color:#fff;border-bottom:3px solid #0756d8}
+:root[data-section-theme="facebook"] header p{color:rgba(255,255,255,.9)}
+:root[data-section-theme="facebook"] header a.btn{color:#fff;border-color:rgba(255,255,255,.6)}
+:root[data-section-theme="facebook"] header button.ghost{color:#fff;border-color:rgba(255,255,255,.6)}
+:root[data-section-theme="facebook"] nav button.on{background:#e7f3ff;color:#0866ff}
+:root[data-section-theme="facebook"] nav button{color:#1877f2}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "IBM Plex Sans",system-ui,sans-serif}
 header{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 20px;background:var(--pan);border-bottom:3px solid var(--warn)}
 h1{margin:0;font-size:20px;font-weight:600}header p{margin:0;color:var(--mut);font-size:13px}.hdr{display:flex;gap:8px}

@@ -12,7 +12,7 @@ const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad s
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
  try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
-const href=s=>s.id==="ops"?"ops.html?sec=ops":"app.html?sec="+s.id,STYLE={ei:["#1b7f4b","#27ae60"],mech:["#1b7f4b","#27ae60"],ops:["#1b7f4b","#27ae60"]};
+const href=s=>s.id==="ops"?"ops.html?sec=ops":"app.html?sec="+s.id,STYLE={ei:["#0866ff","#1877f2"],mech:["#0866ff","#1877f2"],ops:["#1b7f4b","#27ae60"]};
 // E&I and Mechanical: orders of today, completion of the last 7 days, notifications of the month, equipment
 async function maint(sec){const TD=opDay(),today=L.iso(TD),month=today.slice(0,7);
  const [d,r,n]=await Promise.all([call("load",{sec,date:today}),call("range",{sec,from:L.iso(TD-7),to:L.iso(TD-1)}),call("notif_list",{sec,month})]);const M=d.master,EX=d.extras||[];
