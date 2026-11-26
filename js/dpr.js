@@ -1,6 +1,7 @@
 // Coke Oven Operation: Daily Production Report (DPR). Pages: Dashboard, Daily entry, Reports, Settings.
 (()=>{
 const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,HOD=sessionStorage.cmmsSection==="hod",R=HOD?"mgmt":sessionStorage.cmmsRole||"mgmt",UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" Operation":(sessionStorage.cmmsUnit||"Coke Oven Operation");
+let NM=sessionStorage.cmmsName||U||"User";
 if(!T||(sessionStorage.cmmsSection!=="ops"&&!(HOD&&new URLSearchParams(location.search).get("sec")==="ops"))){location.replace(HOD?"hod.html":T?"app.html":"../index.html");return}
 if(HOD&&window.HODBAR)HODBAR.mount("ops");
 const esc=CH.esc,fmt=CH.fmt,dmy=s=>s?String(s).split("-").reverse().join("/"):"",addDay=D.addDay;
@@ -17,7 +18,6 @@ async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 const escProfile=v=>String(v??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const roleLabel={admin:"Administrator",entry:"Data Entry",mgmt:"Management"};
-let NM=sessionStorage.cmmsName||U||"User";
 async function openProfile(){const box=$("#profileModal");box.hidden=false;$("#profileMsg").textContent="Loading profile...";$("#profileAdmin").hidden=true;try{const j=await call("profile_get"),p=j.profile||{};sessionStorage.cmmsName=p.name||U;NM=p.name||U;$("#profileNameView").textContent=p.name||"Not set";$("#profileLoginView").textContent=j.user||U;$("#profileRoleView").textContent=roleLabel[j.role]||j.role;$("#profileEmpView").textContent=p.empCode||"";$("#profileDeptView").textContent=p.department||"";$("#profileFuncView").textContent=p.function||"";$("#profileMsg").textContent="";$("#unitH").textContent="Coke Oven Operation — "+NM;if(j.users){$("#profileAdmin").hidden=false;$("#profileUsers").innerHTML=j.users.map(u=>`<tr data-u="${escProfile(u.username)}"><td>${escProfile(u.username)}</td><td>${escProfile(roleLabel[u.role]||u.role)}</td><td><input data-f="name" maxlength="60" value="${escProfile(u.profile?.name||"")}"></td><td><input data-f="empCode" maxlength="20" value="${escProfile(u.profile?.empCode||"")}"></td><td><input data-f="department" maxlength="60" value="${escProfile(u.profile?.department||"")}"></td><td><input data-f="function" maxlength="60" value="${escProfile(u.profile?.function||"")}"></td><td><button class="ghost" data-profile-save>Save</button></td></tr>`).join("")}}catch(e){$("#profileMsg").textContent=e.message}}
 $("#profileBtn")?.addEventListener("click",openProfile);$("#profileClose")?.addEventListener("click",()=>$("#profileModal").hidden=true);$("#profileUsers")?.addEventListener("click",async e=>{if(!e.target.matches("[data-profile-save]"))return;const tr=e.target.closest("tr"),profile={};tr.querySelectorAll("[data-f]").forEach(x=>profile[x.dataset.f]=x.value);e.target.disabled=true;try{await call("profile_save",{username:tr.dataset.u,profile});$("#profileAdminMsg").textContent="Profile saved for "+(profile.name||tr.dataset.u);if(tr.dataset.u===U){sessionStorage.cmmsName=profile.name||U;NM=profile.name||U}}catch(err){$("#profileAdminMsg").textContent=err.message}e.target.disabled=false});
 async function load(to,force){to=to||S.month;if(!force&&S.loaded&&S.to===to)return;const d=await call("dpr_load",{to});S.cfg={...D.DEF,...d.settings};S.recs={};S.meta={};
@@ -95,50 +95,50 @@ function dashboard(){const v=$("#view"),m=S.month,all=monthRows(m),data=all.filt
  const cd=(id,t,cls="")=>`<div class="cd ${cls}"><h4>${t}</h4><div id="${id}"></div></div>`,secH=(id,t,c1,c2,note,inner)=>`<section class="ds" id="${id}" style="--c1:${c1};--c2:${c2}"><h3>${t}<span>${note||""}</span></h3>${inner}</section>`;
  const jobs=[],chart=(id,cfg)=>jobs.push(()=>CH.chart($("#"+id),{labels:lab,tipLabel:tl,...cfg})),donut=(id,cfg)=>jobs.push(()=>CH.donut($("#"+id),cfg)),sp=(id,cfg)=>jobs.push(()=>CH.spark($("#"+id),{labels:rows.map(r=>dmy(r.date)),...cfg}));
  const PL=CH.PAL;let html=head+`<div class="kpis">${kp.map(([c,t,,val,u,sub,go])=>`<div class="kc ${c}" data-go="${go}"><small>${t}</small><b>${fmt(val,val>=1000?0:1)}<small style="display:inline;font-size:13px"> ${u}</small></b><span>${sub}</span></div>`).join("")}</div>
-  <nav class="dnav noprint">${[["stock","Stock position"],["prod","Production"],["disp","Dispatch"],["cons","Raw material"],["energy","Power, water and steam"],["delay","Delay report"],["cq","Charging coal quality"],["kq","Coke quality"],["safe","Safety"],["proc","Process"],["belt","Belt readings"]].map(([i,t])=>`<a href="#${i}" data-jump="${i}">${t}</a>`).join("")}</nav>`;
- // 1 stock
- html+=secH("stock","1. Stock position","#0f3a5f","#2f80ed","Opening and closing stock",`<div class="cards">${cd("c1","Closing stock by day (MT)","w2")}${cd("c2","Finished goods by size on "+dmy(lastD))}${cd("c3","By product closing stock on "+dmy(lastD))}</div>`);
- chart("c1",{type:"line",series:[{name:"Finished goods",color:PL[0],data:rows.map(r=>sv(r,"clT")),area:true},{name:"By product",color:PL[2],data:rows.map(r=>ssum(r,["cb0","cb1","cb2","cb3","cb4","cb5"])),area:true},{name:"Opening stock total",color:PL[4],data:rows.map(r=>sv(r,"oT"))}],unit:"MT",dec:1});
- donut("c2",{items:D.G9C.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cl"+i])})),center:"Finished goods",unit:" MT",dec:1});donut("c3",{items:D.BYC.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cb"+i])})),center:"By product",unit:" MT",dec:1});
- // 2 production
- html+=secH("prod","2. Production","#1b7f4b","#27ae60","BF grade coke and by products",`<div class="cards">${cd("p1","Daily production (MT) and month to date","w2")}${cd("p2","Capacity utilisation (%)")}${cd("p3","Capacity utilisation, month")}${cd("p4","Production mix, month")}${cd("p5","Gross coke per oven (MT)")}</div>`);
+  <nav class="dnav noprint">${[["prod","Production"],["proc","Process"],["cons","Raw material consumption"],["stock","Stock position"],["disp","Dispatch"],["energy","Power, water and steam"],["cq","Coal quality"],["kq","Coke quality"],["safe","Safety"],["delay","Delay report"],["belt","Belt readings"]].map(([i,t])=>`<a href="#${i}" data-jump="${i}">${t}</a>`).join("")}</nav>`;
+ // 1 production
+ html+=secH("prod","1. Production","#1b7f4b","#27ae60","BF grade coke and by products",`<div class="cards">${cd("p1","Daily production (MT) and month to date","w2")}${cd("p2","Capacity utilisation (%)")}${cd("p3","Capacity utilisation, month")}${cd("p4","Production mix, month")}${cd("p5","Gross coke per oven (MT)")}</div>`);
  chart("p1",{series:[{name:"BF grade coke",color:PL[0],data:ser("prT")},{name:"Nut coke",color:PL[1],data:rows.map(r=>sum(r,["bp0","bp1","bp2","bp3"]))},{name:"Breeze",color:PL[2],data:ser("bp4")},{name:"Fines",color:PL[3],data:ser("bp5")},{name:"Month to date",color:PL[4],type:"line",axis:"y2",data:rows.map(r=>r.has?sv(r,"cum"):null)}],stacked:true,unit:"MT",y2unit:" MT",dec:1});
  chart("p2",{type:"line",series:[{name:"Capacity utilisation",color:PL[5],data:ser("cap"),area:true}],unit:"%",dec:1});jobs.push(()=>CH.gauge($("#p3"),{id:1,value:T.cap,max:130,label:"month average",unit:"%",zones:[[80,"#eb5757"],[95,"#f2c94c"],[130,"#27ae60"]]}));
  donut("p4",{items:[{name:"BF grade coke",value:T.prT},{name:"Nut coke",value:(T.bp0||0)+(T.bp1||0)+(T.bp2||0)+(T.bp3||0)},{name:"Breeze",value:T.bp4},{name:"Coke fines",value:T.bp5}],center:"Production",unit:" MT",dec:0});
  chart("p5",{type:"line",series:[{name:"On date",color:PL[1],data:ser("gpo")},{name:"Month to date",color:PL[0],data:ser("gpm")}],unit:"MT / oven",dec:2});
- // 3 dispatch
- html+=secH("disp","3. Dispatch","#b45309","#f2994a","RMHS, sinter, outside sales and by product sales",`<div class="cards">${cd("d1","Dispatch by destination (MT)","w2")}${cd("d2","Share of dispatch, month")}${cd("d3","Dispatch to RMHS by size, month")}</div>`);
- chart("d1",{series:[{name:"RMHS",color:PL[0],data:ser("tdR")},{name:"Sinter",color:PL[2],data:ser("tdS")},{name:"By product sales",color:PL[1],data:ser("tdB")},{name:"Outside sales",color:PL[3],data:ser("osT")}],stacked:true,unit:"MT",dec:1});
- donut("d2",{items:[{name:"RMHS",value:T.tdR},{name:"Sinter",value:T.tdS},{name:"By product sales",value:T.tdB},{name:"Outside sales",value:T.osT}],center:"Dispatch",unit:" MT",dec:0});
- jobs.push(()=>CH.chart($("#d3"),{labels:D.RMHS,series:[{name:"MT",color:PL[0],data:D.RMHS.map((_,i)=>T["dr"+i]||0)}],unit:"MT",dec:1,height:230}));
- // 4 consumption
- html+=secH("cons","4. Cokeoven / self consumption of raw material","#5b2bb0","#9b51e0","Coal consumed by type",`<p class="hint" style="margin:0 0 8px">${D.COAL.map((n,i)=>n+" = "+D.COALN[i]).join(" · ")}</p><div class="cards">${cd("r1","Coal consumption by type (MT)","w2")}${cd("r2","Share by coal type, month")}${cd("r3","Coal to coke ratio")}${cd("r4","Total and dry coal consumption (MT)")}</div>`);
+ // 2 process
+ html+=secH("proc","2. Process","#00798c","#27ae60","Pushings, coking hours, yield and charging",`<div class="cards">${cd("g1","Pushings per day and month to date","w2")}${cd("g2","Average cooking hours")}${cd("g3","Dry coke yield (%)")}${cd("g4","Average per oven charging (MT)")}${cd("g5","Average process temperature")}</div>`);
+ chart("g1",{series:[{name:"No. of pushings",color:PL[0],data:ser("pnp")},{name:"Month to date",color:PL[1],type:"line",axis:"y2",data:rows.map(r=>r.has?sv(r,"pmp"):null)}],unit:"pushings",y2unit:" MTD",dec:0});
+ chart("g2",{type:"line",series:[{name:"Cooking hours",color:PL[5],data:ser("pck"),area:true}],unit:"hours",dec:2});chart("g3",{type:"line",series:[{name:"Dry coke yield",color:PL[1],data:ser("pdy"),area:true}],unit:"%",dec:2});
+ chart("g4",{type:"line",series:[{name:"Dry",color:PL[0],data:ser("ppd")},{name:"Wet",color:PL[2],data:ser("ppw")}],unit:"MT",dec:2});chart("g5",{type:"line",series:[{name:"Process temperature",color:PL[3],data:ser("ptp"),area:true}],dec:0});
+ // 3 consumption
+ html+=secH("cons","3. Raw Material Consumption","#5b2bb0","#9b51e0","Coal consumed by type",`<p class="hint" style="margin:0 0 8px">${D.COAL.map((n,i)=>n+" = "+D.COALN[i]).join(" · ")}</p><div class="cards">${cd("r1","Coal consumption by type (MT)","w2")}${cd("r2","Share by coal type, month")}${cd("r3","Coal to coke ratio")}${cd("r4","Total and dry coal consumption (MT)")}</div>`);
  chart("r1",{series:D.COAL.map((n,i)=>({name:n+" "+D.COALN[i].replace(/^[^ ]+ /,"").replace(/ ?Coal$/,""),color:PL[i],data:ser("cc"+i)})).map((s,i)=>({...s,name:D.COAL[i]})),stacked:true,unit:"MT",dec:1});
  donut("r2",{items:D.COAL.map((n,i)=>({name:n,value:T["cc"+i]||0})),center:"Coal",unit:" MT",dec:0});
  chart("r3",{type:"line",series:[{name:"Coal to coke ratio",color:PL[8],data:ser("pcr"),area:true}],dec:3});chart("r4",{type:"line",series:[{name:"Total consumption",color:PL[0],data:ser("ccT")},{name:"Dry coal consumption",color:PL[1],data:ser("dc")}],unit:"MT",dec:1});
- // 5 energy
- html+=secH("energy","5. Power, water and steam","#00798c","#00b8d9","Power per tonne, make-up water, steam generation",`<div class="cards">${cd("e1","Power consumption (kWh/day)","w2")}${cd("e2","Power per tonne of coke (kWh/t)")}${cd("e3","Steam generation (TPH) and utilisation")}${cd("e4","Make-up water (N-m3)")}</div>`);
+ // 4 stock
+ html+=secH("stock","4. Stock position","#0f3a5f","#2f80ed","Opening and closing stock",`<div class="cards">${cd("c1","Closing stock by day (MT)","w2")}${cd("c2","Finished goods by size on "+dmy(lastD))}${cd("c3","By product closing stock on "+dmy(lastD))}</div>`);
+ chart("c1",{type:"line",series:[{name:"Finished goods",color:PL[0],data:rows.map(r=>sv(r,"clT")),area:true},{name:"By product",color:PL[2],data:rows.map(r=>ssum(r,["cb0","cb1","cb2","cb3","cb4","cb5"])),area:true},{name:"Opening stock total",color:PL[4],data:rows.map(r=>sv(r,"oT"))}],unit:"MT",dec:1});
+ donut("c2",{items:D.G9C.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cl"+i])})),center:"Finished goods",unit:" MT",dec:1});donut("c3",{items:D.BYC.map((n,i)=>({name:n,value:Math.max(0,lastRow.c["cb"+i])})),center:"By product",unit:" MT",dec:1});
+ // 5 dispatch
+ html+=secH("disp","5. Dispatch","#b45309","#f2994a","RMHS, sinter, outside sales and by product sales",`<div class="cards">${cd("d1","Dispatch by destination (MT)","w2")}${cd("d2","Share of dispatch, month")}${cd("d3","Dispatch to RMHS by size, month")}</div>`);
+ chart("d1",{series:[{name:"RMHS",color:PL[0],data:ser("tdR")},{name:"Sinter",color:PL[2],data:ser("tdS")},{name:"By product sales",color:PL[1],data:ser("tdB")},{name:"Outside sales",color:PL[3],data:ser("osT")}],stacked:true,unit:"MT",dec:1});
+ donut("d2",{items:[{name:"RMHS",value:T.tdR},{name:"Sinter",value:T.tdS},{name:"By product sales",value:T.tdB},{name:"Outside sales",value:T.osT}],center:"Dispatch",unit:" MT",dec:0});
+ jobs.push(()=>CH.chart($("#d3"),{labels:D.RMHS,series:[{name:"MT",color:PL[0],data:D.RMHS.map((_,i)=>T["dr"+i]||0)}],unit:"MT",dec:1,height:230}));
+ // 6 energy
+ html+=secH("energy","6. Power, water and steam","#00798c","#00b8d9","Power per tonne, make-up water, steam generation",`<div class="cards">${cd("e1","Power consumption (kWh/day)","w2")}${cd("e2","Power per tonne of coke (kWh/t)")}${cd("e3","Steam generation (TPH) and utilisation")}${cd("e4","Make-up water (N-m3)")}</div>`);
  chart("e1",{series:[{name:"Coke oven",color:PL[0],data:ser("pw1")},{name:"WHRB",color:PL[1],data:ser("pw2")}],stacked:true,unit:"kWh",dec:0});
  chart("e2",{type:"line",series:[{name:"Total power per tonne",color:PL[3],data:ser("pwp"),area:true},{name:"Coke oven power per tonne",color:PL[0],data:ser("pws")}],unit:"kWh/t",dec:1});
  chart("e3",{series:[{name:"Steam generation (TPH)",color:PL[5],data:ser("sgt")},{name:"Capacity utilisation",color:PL[2],type:"line",axis:"y2",data:ser("scu")}],unit:"TPH",y2unit:" %",dec:1});chart("e4",{type:"line",series:[{name:"Make-up water",color:PL[0],data:ser("wt"),area:true}],unit:"N-m3",dec:0});
- // 6 delay
- const DL=[["Electrical","E",PL[0]],["Mechanical","M",PL[2]],["Operational","O",PL[1]],["Power failure","F",PL[3]],["Others","X",PL[4]]];
- html+=secH("delay","6. Delay report","#9c2b2b","#eb5757","Coke oven plant and boiler",`<div class="cards">${cd("l1","Coke oven plant: delay minutes by cause","w2")}${cd("l2","Plant delay, month")}${cd("l3","Actual running (min per day)")}${cd("l4","Coke oven boiler: delay minutes by cause","w2")}</div>`);
- chart("l1",{series:[...DL.map(([n,k,c])=>({name:n,color:c,data:ser("dp"+k)})),{name:"PPM",color:PL[6],data:ser("dpP")}],stacked:true,unit:"min",dec:0});
- donut("l2",{items:[...DL.map(([n,k,c])=>({name:n,color:c,value:T["dp"+k]||0})),{name:"PPM",color:PL[6],value:T.dpP||0}],center:"Minutes",unit:"",dec:0});
- chart("l3",{type:"line",series:[{name:"Actual running",color:PL[1],data:ser("dpA"),area:true}],unit:"min",dec:0});chart("l4",{series:DL.map(([n,k,c])=>({name:n,color:c,data:ser("db"+k)})),stacked:true,unit:"min",dec:0});
- // 7/8 quality sparks
+ // 7 coal quality
  const spark=(arr,pal)=>`<div class="sparks">${arr.map((f,i)=>`<div class="spk" id="${pal}${i}"></div>`).join("")}</div>`;
- html+=secH("cq","7. Charging coal quality","#0f3a5f","#4f8fe6","Daily values, month average dashed",spark(D.CQ,"q"));D.CQ.forEach((n,i)=>sp("q"+i,{title:n,data:ser("cq"+i),color:PL[i%PL.length],dec:2}));
+ html+=secH("cq","7. Coal quality","#0f3a5f","#4f8fe6","Daily values, month average dashed",spark(D.CQ,"q"));D.CQ.forEach((n,i)=>sp("q"+i,{title:n,data:ser("cq"+i),color:PL[i%PL.length],dec:2}));
  html+=secH("kq","8. Coke quality (finished goods: BF grade)","#1b7f4b","#6fcf97","Daily values, month average dashed",spark(D.KQ,"k"));D.KQ.forEach((n,i)=>sp("k"+i,{title:n,data:ser("kq"+i),color:PL[(i+3)%PL.length],dec:2}));
  // 9 safety
  html+=secH("safe","9. Safety","#9c2b2b","#f2994a","Near miss, reportable and minor",`<div class="cards">${cd("f1","Safety events by day","w2")}${cd("f2","Events in the month")}</div>`);
  chart("f1",{series:[{name:"Near miss",color:PL[2],data:ser("sf0")},{name:"Reportable",color:PL[3],data:ser("sf1")},{name:"Minor & non reportable",color:PL[0],data:ser("sf2")}],unit:"events",dec:0});donut("f2",{items:[{name:"Near miss",value:T.sf0||0},{name:"Reportable",value:T.sf1||0},{name:"Minor & non reportable",value:T.sf2||0}],center:"Events",dec:0});
- // 10 process
- html+=secH("proc","10. Process","#00798c","#27ae60","Pushings, coking hours, yield and charging",`<div class="cards">${cd("g1","Pushings per day and month to date","w2")}${cd("g2","Average cooking hours")}${cd("g3","Dry coke yield (%)")}${cd("g4","Average per oven charging (MT)")}${cd("g5","Average process temperature")}</div>`);
- chart("g1",{series:[{name:"No. of pushings",color:PL[0],data:ser("pnp")},{name:"Month to date",color:PL[1],type:"line",axis:"y2",data:rows.map(r=>r.has?sv(r,"pmp"):null)}],unit:"pushings",y2unit:" MTD",dec:0});
- chart("g2",{type:"line",series:[{name:"Cooking hours",color:PL[5],data:ser("pck"),area:true}],unit:"hours",dec:2});chart("g3",{type:"line",series:[{name:"Dry coke yield",color:PL[1],data:ser("pdy"),area:true}],unit:"%",dec:2});
- chart("g4",{type:"line",series:[{name:"Dry",color:PL[0],data:ser("ppd")},{name:"Wet",color:PL[2],data:ser("ppw")}],unit:"MT",dec:2});chart("g5",{type:"line",series:[{name:"Process temperature",color:PL[3],data:ser("ptp"),area:true}],dec:0});
+ // 10 delay
+ const DL=[["Electrical","E",PL[0]],["Mechanical","M",PL[2]],["Operational","O",PL[1]],["Power failure","F",PL[3]],["Others","X",PL[4]]];
+ html+=secH("delay","10. Delay report","#9c2b2b","#eb5757","Coke oven plant and boiler",`<div class="cards">${cd("l1","Coke oven plant: delay minutes by cause","w2")}${cd("l2","Plant delay, month")}${cd("l3","Actual running (min per day)")}${cd("l4","Coke oven boiler: delay minutes by cause","w2")}</div>`);
+ chart("l1",{series:[...DL.map(([n,k,c])=>({name:n,color:c,data:ser("dp"+k)})),{name:"PPM",color:PL[6],data:ser("dpP")}],stacked:true,unit:"min",dec:0});
+ donut("l2",{items:[...DL.map(([n,k,c])=>({name:n,color:c,value:T["dp"+k]||0})),{name:"PPM",color:PL[6],value:T.dpP||0}],center:"Minutes",unit:"",dec:0});
+ chart("l3",{type:"line",series:[{name:"Actual running",color:PL[1],data:ser("dpA"),area:true}],unit:"min",dec:0});chart("l4",{series:DL.map(([n,k,c])=>({name:n,color:c,data:ser("db"+k)})),stacked:true,unit:"min",dec:0});
  // 11 belts
  html+=secH("belt","11. Belt readings","#5b2bb0","#6c5ce7","Reading difference against the calculated figure",`<div class="cards">${cd("b1","Change % against calculation","w2")}${cd("b2","Readings (MT)","w2")}</div>`);
  chart("b1",{series:[{name:"J1 coke production",color:PL[0],data:ser("j1p")},{name:"M8 coal consumption",color:PL[2],data:ser("m8p")}],unit:"%",dec:2});
