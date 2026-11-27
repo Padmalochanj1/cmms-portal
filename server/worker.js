@@ -1,3 +1,5 @@
+// Version 4.7, 27.11.2026
+// Coal Washery Operation (DPR): unit coal-washery:ops now has the roles admin, entry, mgmt and hod; data folder coal-washery-ops/ (settings.json, data/YYYY-MM.json); same actions as Coke Oven (dpr_load, dpr_save, dpr_delete, dpr_settings_save)
 // Version 4.6, 27.11.2026
 // HOD is now a user type of the Operation section (role hod in USERS_COKE_OVEN_OPS and USERS_COAL_WASHERY_OPS). The separate HOD section and the units coal-washery:hod / coke-oven:hod are removed.
 // Version 4.2, 26.11.2026
@@ -112,7 +114,7 @@ const UNITS = {
   'coal-washery:mech': { name: 'Coal Washery Mechanical', folder: 'coal-washery-mech/', users: 'USERS_COAL_WASHERY_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:mech': { name: 'Coke Oven Mechanical', folder: 'coke-oven-mech/', users: 'USERS_COKE_OVEN_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-dpr/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt', 'hod'], hodSections: ['ei', 'mech', 'ops'] },   // roles: admin = Administrator, entry = Data Entry, mgmt = Management, hod = HOD (view only, every section of the plant)
-  'coal-washery:ops': { name: 'Coal Washery Operation', folder: 'coal-washery-ops/', users: 'USERS_COAL_WASHERY_OPS', type: 'ops', roles: ['hod'], hodSections: ['ei', 'mech'] }   // HOD sign-in only, until the Coal Washery Operation section is built
+  'coal-washery:ops': { name: 'Coal Washery Operation', folder: 'coal-washery-ops/', users: 'USERS_COAL_WASHERY_OPS', type: 'ops', cw: true, roles: ['admin', 'entry', 'mgmt', 'hod'], hodSections: ['ei', 'mech', 'ops'] }
 };
 const folderOf = (env, unit) => { const v = unit.folderVar && env[unit.folderVar]; return v ? (v === 'root' ? '' : String(v).replace(/\/*$/, '/')) : unit.folder; };
 async function login(env, plant, section, u, p) {
@@ -327,13 +329,16 @@ function clean(v, d = 0) {
 // Only the typed values are stored; every calculated value is worked out in the website. Roles: admin = all, entry = enter and correct data, mgmt = view only.
 const DPR_TEXT = ['dpR', 'dbR', 'j1r', 'j8r'];
 const DPR_DEF = { annualCapacity: 250000, steamCapacity: 82, standardMinutes: 1440, beltResetMonthly: true };
+const DPR_TEXT_CW = ['rmk'];   // Coal Washery DPR: remarks
+const DPR_DEF_CW = { dailyCapacity: 0, standardMinutes: 1440, processLossPct: 0.5, magnetiteFactor: 1.19 };   // dailyCapacity 0 = not set
 const istToday = () => new Date(Date.now() + 19800000).toISOString().slice(0, 10);
 const monthsFromTo = (a, b) => { const out = []; let y = +a.slice(0, 4), m = +a.slice(5); const ey = +b.slice(0, 4), em = +b.slice(5); while (y < ey || (y === ey && m <= em)) { out.push(y + '-' + String(m).padStart(2, '0')); if (++m > 12) { m = 1; y++; } } return out; };
-async function dprSettings(env) { return { ...DPR_DEF, ...(((await read(env, 'settings.json')).data) || {}) }; }
+async function dprSettings(env, def) { return { ...(def || DPR_DEF), ...(((await read(env, 'settings.json')).data) || {}) }; }
 async function dprHandle(env, b, me) {
   const canWrite = me.role === 'admin' || me.role === 'entry';
+  const cw = !!me.unit.cw, TEXT = cw ? DPR_TEXT_CW : DPR_TEXT, DEF = cw ? DPR_DEF_CW : DPR_DEF;
   if (b.action === 'dpr_load') {                // every month from the first month with data up to the month asked; 30 months at most (30 reads, the limit is 50)
-    const set = await dprSettings(env), to = /^\d{4}-\d{2}$/.test(String(b.to)) ? b.to : istToday().slice(0, 7);
+    const set = await dprSettings(env, DEF), to = /^\d{4}-\d{2}$/.test(String(b.to)) ? b.to : istToday().slice(0, 7);
     let ms = monthsFromTo(set.firstMonth && set.firstMonth <= to ? set.firstMonth : to, to), truncated = false;
     if (ms.length > 30) { ms = ms.slice(-30); truncated = true; }
     const months = {}; await Promise.all(ms.map(async m => { const d = (await read(env, 'data/' + m + '.json')).data; if (d && d.days) months[m] = d.days; }));
@@ -348,7 +353,7 @@ async function dprHandle(env, b, me) {
     for (const k of Object.keys(src)) {
       if (!/^[a-z][a-zA-Z0-9]{1,5}$/.test(k)) continue; if (++n > 260) break;
       const x = src[k];
-      if (DPR_TEXT.includes(k)) { const t = String(x == null ? '' : x).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 300); if (t) v[k] = t; }
+      if (TEXT.includes(k)) { const t = String(x == null ? '' : x).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 300); if (t) v[k] = t; }
       else if (x !== '' && x != null) { const num = Number(x); if (!Number.isFinite(num) || Math.abs(num) > 1e9) throw new Error('Check the value of ' + k + '.'); v[k] = Math.round(num * 1e6) / 1e6; }
     }
     if (!Object.keys(v).length) throw new Error('Nothing to save for this date.');
@@ -359,7 +364,7 @@ async function dprHandle(env, b, me) {
       d.days[date] = { v, by: me.user, at, ed: old ? [...(old.ed || []), { by: old.by, at: old.at }].slice(-20) : [] };
       const r = await write(env, path, d, f.sha, 'DPR ' + date + ' by ' + me.user);
       if (r.ok) {
-        const set = await dprSettings(env);
+        const set = await dprSettings(env, DEF);
         if (!set.firstMonth || date.slice(0, 7) < set.firstMonth) { const sf = await read(env, 'settings.json'); await write(env, 'settings.json', { ...(sf.data || {}), firstMonth: date.slice(0, 7) }, sf.sha, 'DPR first month'); }
         return { ok: true, at };
       }
@@ -381,10 +386,11 @@ async function dprHandle(env, b, me) {
   if (b.action === 'dpr_settings_save') {
     if (me.role !== 'admin') throw new Error('Admin access only.');
     const c = b.settings || {}, num = (x, lo, hi, nm) => { const y = Number(x); if (!Number.isFinite(y) || y < lo || y > hi) throw new Error('Check ' + nm + '.'); return y; };
-    const out = { annualCapacity: num(c.annualCapacity, 1, 1e8, 'the annual capacity'), steamCapacity: num(c.steamCapacity, 1, 1e5, 'the steam capacity'), standardMinutes: num(c.standardMinutes, 1, 1440, 'the standard running minutes'), beltResetMonthly: !!c.beltResetMonthly };
+    const out = cw ? { dailyCapacity: num(c.dailyCapacity, 0, 1e7, 'the raw coal capacity'), standardMinutes: num(c.standardMinutes, 1, 1440, 'the standard running minutes'), processLossPct: num(c.processLossPct, 0, 100, 'the process loss'), magnetiteFactor: num(c.magnetiteFactor, 0, 1000, 'the magnetite factor') }
+      : { annualCapacity: num(c.annualCapacity, 1, 1e8, 'the annual capacity'), steamCapacity: num(c.steamCapacity, 1, 1e5, 'the steam capacity'), standardMinutes: num(c.standardMinutes, 1, 1440, 'the standard running minutes'), beltResetMonthly: !!c.beltResetMonthly };
     for (let i = 0; i < 4; i++) {
       const f = await read(env, 'settings.json'), r = await write(env, 'settings.json', { ...(f.data || {}), ...out }, f.sha, 'DPR settings by ' + me.user);
-      if (r.ok) return { ok: true, settings: { ...DPR_DEF, ...(f.data || {}), ...out } }; if (r.status !== 409 && r.status !== 422) throw new Error('GitHub write failed: ' + r.status);
+      if (r.ok) return { ok: true, settings: { ...DEF, ...(f.data || {}), ...out } }; if (r.status !== 409 && r.status !== 422) throw new Error('GitHub write failed: ' + r.status);
     }
     throw new Error('The server is busy. Please try again.');
   }

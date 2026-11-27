@@ -2,6 +2,15 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 27 Nov 2026 (2)
+**Coal Washery Operation: Daily Production Report and dashboard** (Worker 4.7, new website files)
+- Coal Washery now has the same Operation section as Coke Oven: Dashboard, Daily entry, Reports and Settings, built from `Coal_Washery_DPR_-NOVEMBER-2026.xlsx` (new files `pages/cw-ops.html`, `js/cw-schema.js`, `js/cw-dpr.js`, `js/cw-xlsx.js`). Roles: Administrator, Data Entry, Management and HOD.
+- **Dashboard:** Production and Process are the first two sections. Production: raw coal charged, clean coal, middlings / rejects, month to date. Process: clean coal yield (moisture adjusted), process loss and balancing, feed rate, magnetite and anionic, running time. Then raw coal receipt and stock, clean coal and middlings stock and despatch, power and water, quality (raw coal, clean coal, middlings) and the delay report.
+- **Daily entry** follows the Excel columns (Raw Coal Charged, Production, Yield, Chemicals, Utility, Down time, Quality) and adds the stock sheets (RM Daywise: receiving and interunit transfer; FG Daywise: clean coal and middlings despatch). Stocks carry from day to day. "Upload DPR Excel" reads one date from the workbook (sheets DPR, RM Daywise, FG Daywise).
+- Settings: raw coal capacity per day (0 = not set), standard running minutes, process loss % (0.5) and magnetite factor (1.19).
+- Setup: `USERS_COAL_WASHERY_OPS` now holds the Operation users of all roles (admin, entry, mgmt, hod). Data folder `coal-washery-ops/` in the data repo; the files `settings.json` and `data/2026-11.json` (the 25 days of November from the sheet) are supplied.
+- The HOD overview shows a Coal Washery Operation card, and the HOD can open the full Operation pages.
+
 ## 27 Nov 2026
 **HOD moved into the Operation section as a user type** (Worker 4.6, new website files)
 - The sign-in section "HOD (all sections)" is removed. An HOD now selects the plant and **Operation**, and signs in with a user of type **HOD**. After sign-in the HOD sees the same HOD overview as before (every section of the plant, view only).
