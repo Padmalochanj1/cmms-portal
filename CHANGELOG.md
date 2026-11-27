@@ -2,6 +2,12 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 27 Nov 2026
+**HOD moved into the Operation section as a user type** (Worker 4.6, new website files)
+- The sign-in section "HOD (all sections)" is removed. An HOD now selects the plant and **Operation**, and signs in with a user of type **HOD**. After sign-in the HOD sees the same HOD overview as before (every section of the plant, view only).
+- Users: put the HOD users in `USERS_COKE_OVEN_OPS` with role `hod`, e.g. `"hod01":["ChangeMe-01","hod"]`. For Coal Washery use the new secret `USERS_COAL_WASHERY_OPS` (HOD users only; the Coal Washery Operation section itself is still coming soon). The secrets `USERS_COKE_OVEN_HOD` and `USERS_COAL_WASHERY_HOD` are no longer used and can be deleted.
+- The Worker still refuses every write action for an HOD. The Operation administrator sees HOD users in the profile and password-reset lists.
+
 ## 26 Nov 2026
 **HOD interface for Coke Oven and Coal Washery** (Worker 4.2, new website files)
 - New sign-in section "HOD (all sections)" for both plants. One HOD overview page shows the state of E&I, Mechanical and Operation (Coal Washery: E&I and Mechanical), and "Open full view" opens the management pages of each section. Everything is view only for the HOD.
