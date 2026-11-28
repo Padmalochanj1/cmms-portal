@@ -15,7 +15,12 @@ h1 span{display:block;background:linear-gradient(90deg,#f0a020,#e8890b 50%,#d964
 .who{position:absolute;top:20px;right:25px;width:auto;margin:0;display:flex;align-items:center;justify-content:flex-end;gap:10px;color:var(--mut);z-index:5}.who b{color:var(--ink)}
 .acct{position:absolute;top:62px;right:25px;width:auto;margin:0;display:flex;justify-content:flex-end;gap:8px;z-index:5}
 .tag{margin:-22px 0 26px;padding:5px 16px;border-radius:999px;font-size:14px;font-weight:600;color:var(--amberd);background:rgba(255,157,46,.14);border:1px solid rgba(217,120,10,.45)}
-
+h1 span {
+  display: inline;
+  background: none;
+  color: #f97316; /* orange */
+  -webkit-text-fill-color: #f97316;
+}
 /* Header, below 1100px: everything stacks in normal flow so nothing can overlap */
 @media(max-width:1099px){
  .hero{padding-top:18px}
