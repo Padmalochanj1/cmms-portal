@@ -2,6 +2,12 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 28 Nov 2026 (2)
+**MTTR / MTBF page renamed Analytics, with an area view** (new website files; the Worker is unchanged)
+- The tab, the landing tile, the HOD overview link and the printed heading now say **Analytics**. The page address (`#reliability`) is unchanged, so saved links still work.
+- New switch **By equipment / By area**. The area view compares all areas (failures, downtime, MTTR and MTBF as bars, longest repair and shortest MTBF first), lists them with share of downtime and availability, and has an **Area detail** selector: KPIs of the chosen area, its month by month figures (Yearly) and its equipment.
+- Same period, operating hours and failure sources as before; the figures of an area use the same formulas as the overview.
+
 ## 28 Nov 2026
 **Operation Dashboard link for every user of the plant** (Worker 4.9, new website files)
 - After sign-in, every user of Coal Washery and Coke Oven (Electrical, Mechanical, Operation and HOD) sees a tile **Operation Dashboard**. Electrical and Mechanical users get the Dashboard page only, view only: no entry, reports or settings, whatever their role in their own section. Operation users and HODs open the Operation dashboard of their own access. RMHS has no Operation section, so it shows no tile.

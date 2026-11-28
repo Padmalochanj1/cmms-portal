@@ -10,7 +10,7 @@ const SECN={ei:"Electrical",mech:"Mechanical",ops:"Operation"},UN=HOD?String(ses
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",fromClosing=false,items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;
-let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"],["reliability","MTTR / MTBF"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder","reliability"].includes(r[0])&&!(HOD&&r[0]==="neworder")):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
+let EX=[],NAMES={},NM=sessionStorage.cmmsName||U;const bn=u=>NAMES[u]||u;const V={},A={};const ALL=[["dashboard","Dashboard"],["closing","Order closing"],["report","Closure report"],["checklist","Checklist closing"],["tomorrow","Tomorrow’s orders"],["notifications","Notifications"],["neworder","Create order"],["reliability","Analytics"]],ROUTES=(R==="mgmt"?ALL.filter(r=>["dashboard","report","tomorrow","notifications","neworder","reliability"].includes(r[0])&&!(HOD&&r[0]==="neworder")):ALL).concat(R==="admin"||R==="mgmt"?[["admin","Admin"]]:[]);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...(HOD?{sec:SEC}:{}),...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}
  catch(e){throw new Error("The server did not respond. Check the URL in config.js and that the Apps Script deployment access is set to Anyone.")}
@@ -341,7 +341,7 @@ A.compliance=()=>{const tabs=[["weekly","Weekly"],["monthly","Monthly"],["yearly
 
 
 /* RELIABILITY: MTTR and MTBF from Breakdown notifications and corrective orders */
-let rel={tab:"monthly",month:L.iso(TD).slice(0,7),year:+L.iso(TD).slice(0,4),hpd:24,src:{ntf:true,att:false,add:false}},RC={},RD={key:"",parts:{},err:"",done:false},relRun=0;
+let rel={view:"overview",area:"",tab:"monthly",month:L.iso(TD).slice(0,7),year:+L.iso(TD).slice(0,4),hpd:24,src:{ntf:true,att:false,add:false}},RC={},RD={key:"",parts:{},err:"",done:false},relRun=0;
 const relKey=()=>rel.tab==="monthly"?"m"+rel.month:"y"+rel.year;
 const relMonths=()=>rel.tab==="monthly"?[rel.month]:[...Array(12)].map((_,i)=>rel.year+"-"+String(i+1).padStart(2,"0"));
 async function relFetch(a,b){const hi=Math.min(b,TD);if(a>hi)return{breakdowns:[],orders:[]};const from=L.iso(a),to=L.iso(hi),k=from+"|"+to,h=RC[k];if(h&&Date.now()-h.t<3e5)return h.d;const d=await call("reliability_range",{from,to});RC[k]={t:Date.now(),d};return d}
@@ -360,25 +360,41 @@ function relStats(ev,days){const by={};ev.forEach(e=>{const r=by[e.eq]||(by[e.eq
  return{rows,N,D,A,T,mttr:N?D/N:null,mtbf:N?Math.max(0,A*T-D)/N:null,av:A&&T?Math.max(0,A*T-D)/(A*T)*100:null}}
 const fh=(m,d=1)=>m==null?"—":(m/60).toFixed(d),fp=p=>p==null?"—":p.toFixed(1)+"%";
 const relRow=(l,st)=>`<tr><td>${l}</td><td>${st.N}</td><td>${fh(st.D,2)}</td><td>${fh(st.mttr,2)}</td><td>${fh(st.mtbf)}</td><td>${fp(st.av)}</td></tr>`;
+/* ANALYTICS, area point of view: every figure of the overview, grouped by area */
+const abars=(l,f)=>{const m=Math.max(1e-9,...l.map(x=>x[1]));return l.map(([a,n])=>`<div class="bar2"><span title="${esc(a)}">${esc(a)}</span><i style="width:${Math.max(1,n/m*100)}%"></i><em style="min-width:46px">${f(n)}</em></div>`).join("")};
+function areaView(ev,days,st){
+ const H=["Failures","Downtime (h)","MTTR (h)","MTBF (h)","Availability"],ar=[...new Set(ev.map(e=>e.area))],S=ar.map(a=>({a,...relStats(ev.filter(e=>e.area===a),days)})).sort((x,y)=>y.D-x.D||y.N-x.N);
+ if(!S.length)return`<p class="empty">No failures in this period.</p>`;
+ const sel=ar.includes(rel.area)?rel.area:"",top=(k,asc)=>S.map(r=>[r.a,r[k]||0]).sort((x,y)=>asc?x[1]-y[1]:y[1]-x[1]),share=r=>st.D?(r.D/st.D*100).toFixed(1)+"%":"—",kpx=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
+ let h=`<h3 style="margin-top:18px">Area-wise comparison</h3><div class="two"><div><h4>Failures</h4>${abars(top("N"),n=>n)}</div><div><h4>Downtime (h)</h4>${abars(top("D"),n=>fh(n,1))}</div>
+  <div><h4>MTTR (h), longest repair first</h4>${abars(top("mttr"),n=>fh(n,2))}</div><div><h4>MTBF (h), shortest first</h4>${abars(top("mtbf",true),n=>fh(n,0))}</div></div>`;
+ h+=`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area","Equipment affected","Failures","Downtime (h)","Share of downtime","MTTR (h)","MTBF (h)","Availability"],S.map(r=>`<tr><td>${esc(r.a)}</td><td>${r.A}</td><td>${r.N}</td><td>${fh(r.D,2)}</td><td>${share(r)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`));
+ h+=`<h3 style="margin-top:22px">Area detail</h3><div class="bar noprint"><label>Area <select id="rar"><option value="">Choose an area</option>${S.map(r=>`<option${r.a===sel?" selected":""}>${esc(r.a)}</option>`).join("")}</select></label></div>`;
+ const r=S.find(x=>x.a===sel);
+ if(!r)return h+`<p class="hint">Choose an area to see its equipment${rel.tab==="yearly"?" and its month by month figures":""}.</p>`;
+ h+=`<div class="kpis">${kpx(r.N,"Failures",COL.red)}${kpx(r.A,"Equipment affected",COL.amber)}${kpx(fh(r.D,2),"Downtime (h)",COL.violet)}${kpx(fh(r.mttr,2),"MTTR (h)",COL.blue)}${kpx(fh(r.mtbf),"MTBF (h)",COL.green)}${kpx(fp(r.av),"Availability",COL.green)}</div>`;
+ if(rel.tab==="yearly")h+=`<h4>${esc(sel)}: month by month</h4>`+tbl(["Month",...H],[...Array(12)].map((_,i)=>{const m=rel.year+"-"+String(i+1).padStart(2,"0"),d=relDays(m);return RD.parts[m]?relRow(MON[i],relStats(ev.filter(e=>e.area===sel&&e.m===m),d)):`<tr><td>${MON[i]}</td><td colspan="5" class="empty">${RD.err?"":d?"Loading...":"—"}</td></tr>`}));
+ h+=`<h4>${esc(sel)}: equipment</h4>`+tbl(["Equipment",...H],r.rows.map(q=>`<tr><td>${esc(q.name)}<small>${esc(q.eq)}</small></td><td>${q.n}</td><td>${fh(q.mins,2)}</td><td>${fh(q.mttr,2)}</td><td>${fh(q.mtbf)}</td><td>${fp(q.av)}</td></tr>`));
+ return h}
 function relBody(){const ms=Object.keys(RD.parts).sort(),{ev,excl}=relEvents(RD.parts),days=ms.reduce((a,m)=>a+relDays(m),0),st=relStats(ev,days),kp=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
- const title=rel.tab==="monthly"?`MTTR and MTBF, ${MON[+rel.month.slice(5)-1]} ${rel.month.slice(0,4)}`:`MTTR and MTBF, January to December ${rel.year}`;
+ const title=rel.tab==="monthly"?`Analytics: MTTR and MTBF, ${MON[+rel.month.slice(5)-1]} ${rel.month.slice(0,4)}`:`Analytics: MTTR and MTBF, January to December ${rel.year}`;
  const H=["Failures","Downtime (h)","MTTR (h)","MTBF (h)","Availability"];
  let h=PH(title)+`<div class="kpis">${kp(st.N,"Failures",COL.red)}${kp(st.A,"Equipment affected",COL.amber)}${kp(fh(st.D,2),"Downtime (h)",COL.violet)}${kp(fh(st.mttr,2),"MTTR (h)",COL.blue)}${kp(fh(st.mtbf),"MTBF (h)",COL.green)}${kp(fp(st.av),"Availability",COL.green)}</div>`;
  if(rel.tab==="yearly")h+=`<h3 style="margin-top:18px">Month by month</h3>`+tbl(["Month",...H],[...Array(12)].map((_,i)=>{const m=rel.year+"-"+String(i+1).padStart(2,"0"),d=relDays(m);return RD.parts[m]?relRow(MON[i],relStats(ev.filter(e=>e.m===m),d)):`<tr><td>${MON[i]}</td><td colspan="5" class="empty">${RD.err?"":d?"Loading...":"—"}</td></tr>`}));
  const ar=[...new Set(ev.map(e=>e.area))].sort();
- h+=`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area",...H],ar.map(a=>relRow(esc(a),relStats(ev.filter(e=>e.area===a),days))))+
- `<h3 style="margin-top:18px">By equipment</h3>`+tbl(["Equipment","Area",...H],st.rows.map(r=>`<tr><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`))+
+ h+=(rel.view==="area"?areaView(ev,days,st):`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area",...H],ar.map(a=>relRow(esc(a),relStats(ev.filter(e=>e.area===a),days))))+
+ `<h3 style="margin-top:18px">By equipment</h3>`+tbl(["Equipment","Area",...H],st.rows.map(r=>`<tr><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`)))+
  `<p class="hint">MTTR = total repair time / number of failures. MTBF = (operating time - repair time) / number of failures, where operating time is ${rel.hpd} hour(s) a day for every day of the period up to today, counted for each equipment that failed. Availability = (operating time - repair time) / operating time. Equipment with no failure in the period are not listed. Sources used: ${Object.keys(rel.src).filter(k=>rel.src[k]).map(k=>RSRC[k]).join(", ")||"none selected"}. Repair time of a notification is its breakdown time; repair time of an order is its closing End time minus Start time.${excl?` ${excl} selected order(s) were left out because they are not closed or have no start and end time.`:""}${rel.src.ntf&&(rel.src.att||rel.src.add)?" A breakdown that has both a notification and an order is counted twice.":""}</p>`;
  return h}
 V.reliability=()=>{const v=$("#view");if(RD.key!==relKey())relLoad();
  const pick=rel.tab==="monthly"?`<label>Month <input type="month" id="rmo" value="${rel.month}"></label>`:`<label>Year <select id="ryr">${[...new Set([...Array(6)].map((_,i)=>+L.iso(TD).slice(0,4)-i).filter(y=>y>=2026).concat(rel.year))].sort((a,b)=>b-a).map(y=>`<option${y===rel.year?" selected":""}>${y}</option>`).join("")}</select></label>`;
  const ck=(k)=>`<label class="chk"><input type="checkbox" data-rs="${k}"${rel.src[k]?" checked":""}> ${RSRC[k]}s</label>`;
- v.innerHTML=`<div class="subtabs noprint">${[["monthly","Monthly"],["yearly","Yearly"]].map(([k,n])=>`<button class="ghost${rel.tab===k?" on":""}" data-rt="${k}">${n}</button>`).join("")}</div>
+ v.innerHTML=`<div class="subtabs noprint">${[["monthly","Monthly"],["yearly","Yearly"]].map(([k,n])=>`<button class="ghost${rel.tab===k?" on":""}" data-rt="${k}">${n}</button>`).join("")}<span style="width:24px"></span>${[["overview","By equipment"],["area","By area"]].map(([k,n])=>`<button class="ghost${rel.view===k?" on":""}" data-rv="${k}">${n}</button>`).join("")}</div>
  <div class="bar noprint"><button class="ghost" data-rn="-1">&lt; Previous</button>${pick}<button class="ghost" data-rn="1">Next &gt;</button><label>Operating hours per day <input type="number" id="rhpd" min="1" max="24" step="1" value="${rel.hpd}" style="width:80px"></label><button class="ghost" data-rreload>Reload</button><button class="ghost" data-print>Print</button></div>
  <div class="bar noprint"><span class="hint">Failures from:</span>${ck("ntf")}${ck("att")}${ck("add")}</div>`+
  (RD.err?`<p class="empty">Could not load: ${esc(RD.err)}</p>`:rel.tab==="monthly"&&!RD.done?`<p class="empty">Loading...</p>`:relBody());
- v.onclick=e=>{const d=e.target.dataset;if(d.rt){rel.tab=d.rt;V.reliability()}else if(d.rn){const n=+d.rn;if(rel.tab==="monthly"){const y=+rel.month.slice(0,4),m=+rel.month.slice(5)-1+n;rel.month=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7)}else rel.year+=n;V.reliability()}else if(d.rreload!==undefined){RC={};RD.key="";V.reliability()}else if(d.print!==undefined)window.print()};
- v.onchange=e=>{const t=e.target;if(t.id==="rmo"&&t.value)rel.month=t.value;else if(t.id==="ryr")rel.year=+t.value;else if(t.id==="rhpd")rel.hpd=Math.min(24,Math.max(1,Math.round(+t.value)||24));else if(t.dataset.rs)rel.src[t.dataset.rs]=t.checked;else return;V.reliability()}};
+ v.onclick=e=>{const d=e.target.dataset;if(d.rt){rel.tab=d.rt;V.reliability()}else if(d.rv){rel.view=d.rv;V.reliability()}else if(d.rn){const n=+d.rn;if(rel.tab==="monthly"){const y=+rel.month.slice(0,4),m=+rel.month.slice(5)-1+n;rel.month=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7)}else rel.year+=n;V.reliability()}else if(d.rreload!==undefined){RC={};RD.key="";V.reliability()}else if(d.print!==undefined)window.print()};
+ v.onchange=e=>{const t=e.target;if(t.id==="rmo"&&t.value)rel.month=t.value;else if(t.id==="ryr")rel.year=+t.value;else if(t.id==="rar")rel.area=t.value;else if(t.id==="rhpd")rel.hpd=Math.min(24,Math.max(1,Math.round(+t.value)||24));else if(t.dataset.rs)rel.src[t.dataset.rs]=t.checked;else return;V.reliability()}};
 
 V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access only.";return}
  if(R!=="admin"&&sub==="sched")sub="closure";
