@@ -4,7 +4,7 @@ Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the
 
 ## 28 Nov 2026
 **Operation Dashboard link for every user of the plant** (Worker 4.9, new website files)
-- After sign-in, every Electrical and Mechanical user of Coal Washery and Coke Oven sees a tile **Operation Dashboard** (view only). It opens the plant's Operation dashboard (Production and Process first) with the Dashboard page only: no entry, reports or settings, whatever the user's role in their own section. RMHS has no Operation section, so it shows no tile.
+- After sign-in, every user of Coal Washery and Coke Oven (Electrical, Mechanical, Operation and HOD) sees a tile **Operation Dashboard**. Electrical and Mechanical users get the Dashboard page only, view only: no entry, reports or settings, whatever their role in their own section. Operation users and HODs open the Operation dashboard of their own access. RMHS has no Operation section, so it shows no tile.
 - Worker: `dpr_load` with `sec: "ops"` is now answered for Electrical and Mechanical users, read only. Every other Operation action is still refused for them.
 
 ## 27 Nov 2026 (3)
