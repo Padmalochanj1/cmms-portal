@@ -2,6 +2,11 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 28 Nov 2026
+**Operation Dashboard link for every user of the plant** (Worker 4.9, new website files)
+- After sign-in, every Electrical and Mechanical user of Coal Washery and Coke Oven sees a tile **Operation Dashboard** (view only). It opens the plant's Operation dashboard (Production and Process first) with the Dashboard page only: no entry, reports or settings, whatever the user's role in their own section. RMHS has no Operation section, so it shows no tile.
+- Worker: `dpr_load` with `sec: "ops"` is now answered for Electrical and Mechanical users, read only. Every other Operation action is still refused for them.
+
 ## 27 Nov 2026 (3)
 **E&I renamed to Electrical** (Worker 4.8, new website files)
 - The section is now called "Electrical" everywhere it is shown: sign-in section list, page headings and titles, the HOD overview, and the unit names the Worker reports (Coal Washery Electrical, Coke Oven Electrical, RMHS Electrical). Internal names (section id `ei`, data folders `*-ei/`, secrets `USERS_*_EI`) are unchanged, so no data or secret has to be moved.

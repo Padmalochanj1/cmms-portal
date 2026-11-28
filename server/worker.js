@@ -1,3 +1,5 @@
+// Version 4.9, 28.11.2026
+// Operation dashboard, view only, for every Electrical and Mechanical user of a plant that has an Operation section (dpr_load with sec ops)
 // Version 4.8, 27.11.2026
 // E&I renamed to Electrical (display names only; section id ei, folders and secrets unchanged)
 // Version 4.7, 27.11.2026
@@ -440,6 +442,11 @@ async function handle(env, b, req, ctx) {
     const sec = String(b.sec || ''), tu = UNITS[me.key.split(':')[0] + ':' + sec];
     if (!tu || !me.unit.hodSections || !me.unit.hodSections.includes(sec)) throw new Error('Choose a section.');
     if (!HOD_READ.includes(b.action)) throw new Error('HOD access is view only.');
+    me = { ...me, unit: tu, role: 'mgmt' }; env = { ...env, F: folderOf(env, tu) };
+  }
+  if (me.unit.type !== 'ops' && b.action === 'dpr_load' && b.sec === 'ops') {   // Operation dashboard for the users of the other sections of the plant: read only, as a management user
+    const tu = UNITS[me.key.split(':')[0] + ':ops'];
+    if (!tu) throw new Error('This plant has no Operation section.');
     me = { ...me, unit: tu, role: 'mgmt' }; env = { ...env, F: folderOf(env, tu) };
   }
   if (b.action === 'admin_users') return adminUsers(env, me);

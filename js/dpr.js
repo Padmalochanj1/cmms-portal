@@ -1,8 +1,8 @@
 // Coke Oven Operation: Daily Production Report (DPR). Pages: Dashboard, Daily entry, Reports, Settings.
 (()=>{
-const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,HOD=sessionStorage.cmmsSection==="hod",R=HOD?"mgmt":sessionStorage.cmmsRole||"mgmt",UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" Operation":(sessionStorage.cmmsUnit||"Coke Oven Operation");
+const C=window.CMMS_CONFIG,D=window.DPR,CH=window.CH,$=s=>document.querySelector(s),T=sessionStorage.cmmsToken,U=sessionStorage.cmmsUser,HOD=sessionStorage.cmmsSection==="hod",VIEW=/^(ei|mech)$/.test(sessionStorage.cmmsSection||"")&&new URLSearchParams(location.search).get("view")==="1",R=HOD||VIEW?"mgmt":sessionStorage.cmmsRole||"mgmt",UN=HOD||VIEW?String(sessionStorage.cmmsUnit||"").replace(/ (HOD|Electrical|Mechanical)$/,"")+" Operation":(sessionStorage.cmmsUnit||"Coke Oven Operation");
 let NM=sessionStorage.cmmsName||U||"User";
-if(!T||(sessionStorage.cmmsSection!=="ops"&&!(HOD&&new URLSearchParams(location.search).get("sec")==="ops"))){location.replace(HOD?"hod.html":T?"app.html":"../index.html");return}
+if(!T||(sessionStorage.cmmsSection!=="ops"&&!(HOD&&new URLSearchParams(location.search).get("sec")==="ops")&&!VIEW)){location.replace(HOD?"hod.html":T?"app.html":"../index.html");return}
 if(HOD&&window.HODBAR)HODBAR.mount("ops");
 const esc=CH.esc,fmt=CH.fmt,dmy=s=>s?String(s).split("-").reverse().join("/"):"",addDay=D.addDay;
 const todayISO=()=>{const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)};
@@ -11,10 +11,10 @@ const addMonth=(m,n)=>{const t=new Date(Date.UTC(+m.slice(0,4),+m.slice(5)-1+n,1
 const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"],mName=m=>MONTHS[+m.slice(5)-1]+" "+m.slice(0,4);
 const toast=(m,bad)=>{const t=$("#toast");t.textContent=m;t.className=bad?"bad show":"show";clearTimeout(toast.t);toast.t=setTimeout(()=>t.className="",6000)};
 const S={cfg:{...D.DEF},recs:{},meta:{},rows:[],to:"",loaded:false,today:todayISO(),month:todayISO().slice(0,7),date:todayISO(),dirty:false,rtab:"sheet",rsec:"prd",rdate:todayISO(),truncated:false};
-const ROUTES=[["dashboard","Dashboard"]].concat(R!=="mgmt"?[["entry","Daily entry"]]:[]).concat([["report","Reports"]]).concat(R==="admin"?[["settings","Settings"]]:[]);
+const ROUTES=VIEW?[["dashboard","Dashboard"]]:[["dashboard","Dashboard"]].concat(R!=="mgmt"?[["entry","Daily entry"]]:[]).concat([["report","Reports"]]).concat(R==="admin"?[["settings","Settings"]]:[]);
 let route=ROUTES.some(r=>r[0]===(location.hash||"").slice(1))?location.hash.slice(1):"dashboard";
 async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The server address is not set. Open js/config.js and paste your Worker address.");let j;
- try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...(HOD?{sec:"ops"}:{}),...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
+ try{const r=await fetch(C.url,{method:"POST",body:JSON.stringify({token:T,action:a,...(HOD||VIEW?{sec:"ops"}:{}),...b}),signal:AbortSignal.timeout(45000)});j=await r.json()}catch(e){throw new Error("The server did not respond. Check the Worker address and your network.")}
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 const escProfile=v=>String(v??"").replace(/[&<>\"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const roleLabel={admin:"Administrator",entry:"Data Entry",mgmt:"Management",hod:"HOD"};
@@ -26,7 +26,7 @@ function rebuild(to){S.rows=D.build(S.recs,to||lastDay(S.to),S.cfg)}
 const monthRows=m=>S.rows.filter(r=>r.date.startsWith(m)),dv=(r,k)=>r.has?D.val(r,k):null,sv=(r,k)=>D.val(r,k);
 const FBY=k=>D.BY[k];
 async function show(force){const v=$("#view");v.onclick=v.oninput=v.onchange=null;$("#nav").innerHTML=ROUTES.map(([k,n])=>`<button data-r="${k}" class="${k===route?"on":""}">${n}</button>`).join("");
- $("#sub").textContent=HOD?`${NM} (HOD view, view only)`:`${NM} (${{admin:"Administrator",entry:"Data entry",mgmt:"Management"}[R]||R})`;$("#unitH").textContent=UN;
+ $("#sub").textContent=VIEW?`${NM} (Operation dashboard, view only)`:HOD?`${NM} (HOD view, view only)`:`${NM} (${{admin:"Administrator",entry:"Data entry",mgmt:"Management"}[R]||R})`;$("#unitH").textContent=UN;
  try{const m=route==="entry"?S.date.slice(0,7):route==="report"&&S.rtab==="day"?S.rdate.slice(0,7):S.month;await load(m,force);({dashboard:dashboard,entry:entry,report:report,settings:settings}[route]||dashboard)()}catch(e){v.innerHTML=`<p class="empty">Could not load: ${esc(e.message)} <button id="retry" class="ghost">Try again</button></p>`;const b=$("#retry");if(b)b.onclick=()=>show(true)}}
 const go=r=>{if(S.dirty&&route==="entry"&&r!=="entry"&&!confirm("You have unsaved entries for "+dmy(S.date)+". Leave without saving?"))return;S.dirty=false;route=r;location.hash=r;show()};
 $("#nav").onclick=e=>{if(e.target.dataset.r)go(e.target.dataset.r)};$("#refresh").onclick=()=>{if(S.dirty&&!confirm("Unsaved entries will be lost. Reload anyway?"))return;S.dirty=false;show(true)};
