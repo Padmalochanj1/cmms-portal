@@ -2,6 +2,10 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 28 Nov 2026 (4)
+**Operation dashboard: coloured top tiles** (new website files; the Worker is unchanged)
+- The tiles at the top of the Operation dashboard (Coke Oven and Coal Washery) now take the colour of the section and charts they open, the same colours as the charts of that section (for example Production green, Stock blue, Dispatch orange, Quality violet, Delay red). Each section heading below has a bar of the same colour. Clicking a tile still jumps to its section.
+
 ## 28 Nov 2026 (3)
 **Analytics: targets, trends, bad actors, work mix, CSV** (new website files; the Worker is unchanged)
 - **Trends** (Yearly): MTTR, MTBF, availability and failures month by month, for all areas or one area, with a dashed target line. Points that miss the target are red. The administrator sets the targets (MTTR maximum, MTBF minimum, availability minimum) and the repeat failure rule; they are stored in the portal data (`master.json`, settings) and every table of the page shows a figure that misses its target in red.
