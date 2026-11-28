@@ -95,3 +95,36 @@ button{border-radius:8px;transition:background .15s,border-color .15s,box-shadow
 .whoLink:hover{color:#1d4ed8}
 @media(max-width:1099px){.hero{padding:18px 20px 36px}.mark{width:116px;height:58px}.hero>h1{font-size:25px}}
 @media(max-width:680px){.card{padding:20px}.tile{padding:16px}}
+
+/* PMPX Hybrid Industrial Suite — login and portal landing */
+:root{--pmpx-navy:#14243b;--pmpx-blue:#2563eb;--pmpx-muted:#64748b}
+body{background:#0d1b2b url('../assets/pmpx-industrial-login.jpg') center/cover fixed no-repeat;color:#f8fafc;font-family:Inter,"Segoe UI",system-ui,sans-serif}
+body:before{content:"";position:fixed;inset:0;background:linear-gradient(115deg,rgba(7,19,34,.82),rgba(13,35,58,.55) 48%,rgba(8,20,35,.74));z-index:0;pointer-events:none}
+.scene{display:none}
+.hero{max-width:1320px;padding:132px 28px 54px}
+.mark{top:20px;left:30px;width:145px;height:76px;z-index:2}
+.hero>h1{top:34px;color:#fff;font-size:clamp(21px,2.4vw,30px);letter-spacing:-.035em;text-shadow:0 2px 18px #0008}
+h1 span{background:linear-gradient(90deg,#93c5fd,#fff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{background:rgba(147,197,253,.14);border:1px solid rgba(191,219,254,.4);color:#dbeafe;backdrop-filter:blur(12px)}
+.glass{background:rgba(248,251,255,.91);border:1px solid rgba(255,255,255,.55);box-shadow:0 24px 70px rgba(0,0,0,.28),inset 0 1px rgba(255,255,255,.8);backdrop-filter:blur(22px) saturate(145%);-webkit-backdrop-filter:blur(22px) saturate(145%);border-radius:20px;color:#172033}
+#login{width:min(820px,100%);padding:32px}
+.card h2{color:#14243b;font-size:23px}
+#lf .col h3{color:#2563eb}
+label{color:#475569}
+input,select{background:rgba(255,255,255,.94);border:1px solid #cbd5e1;border-radius:10px;color:#172033}
+input:focus,select:focus{border-color:#60a5fa;box-shadow:0 0 0 4px rgba(37,99,235,.12);outline:0}
+#go{background:linear-gradient(120deg,#2563eb,#1d4ed8);color:white;border-radius:10px;box-shadow:0 8px 22px rgba(37,99,235,.25)}
+#go:hover{background:linear-gradient(120deg,#1d4ed8,#1e40af)}
+.ghost{background:#fff;color:#334155;border:1px solid #cbd5e1}
+.who{color:#e2e8f0;text-shadow:0 1px 8px #0008}.who b,.whoLink{color:#fff}.whoLink:hover{color:#bfdbfe}
+#home{width:min(1160px,100%)}
+.okmsg{color:#bbf7d0;text-shadow:0 1px 8px #0008}
+.tile{background:rgba(248,251,255,.91);border:1px solid rgba(255,255,255,.58);box-shadow:0 14px 36px rgba(0,0,0,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-radius:16px;color:#172033}
+.tile:hover{background:rgba(255,255,255,.98);border-color:#93c5fd;box-shadow:0 20px 42px rgba(0,0,0,.24);transform:translateY(-3px)}
+.ico{background:linear-gradient(145deg,#dbeafe,#eff6ff);color:#1d4ed8;border:1px solid #bfdbfe}
+.tile b{color:#14243b}.tile div span{color:#64748b}.tile i{color:#2563eb}
+.foot{color:rgba(255,255,255,.72);text-shadow:0 1px 8px #0008}
+#profBox,#pwBox,#admBox{color:#172033}
+@media(max-width:1099px){.hero{padding:24px 20px 40px}.mark{width:116px;height:62px}.hero>h1{color:#fff;font-size:clamp(22px,5vw,29px);margin:0 0 18px}.who{color:#e2e8f0}}
+@media(max-width:680px){#login{padding:22px 18px}.hero{padding:18px 14px 34px}.mark{align-self:center;margin-bottom:8px}.hero>h1{text-align:center}.tile{padding:16px}}
+@media(prefers-reduced-motion:reduce){.tile{transition:none}}
