@@ -6,7 +6,7 @@ if(HOD&&(!SEC||SEC==="ops")){location.replace(SEC==="ops"?"ops.html?sec=ops":"ho
 if(sessionStorage.cmmsSection==="ops"){location.replace("ops.html");return}
 const ACTIVE_SEC=HOD?SEC:sessionStorage.cmmsSection;
 if(ACTIVE_SEC==="ei"||ACTIVE_SEC==="mech")document.documentElement.dataset.sectionTheme="facebook";
-const SECN={ei:"E&I",mech:"Mechanical",ops:"Operation"},UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" "+(SECN[SEC]||SEC):(sessionStorage.cmmsUnit||"Coal Washery E&I");if(HOD&&window.HODBAR)HODBAR.mount(SEC);$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
+const SECN={ei:"Electrical",mech:"Mechanical",ops:"Operation"},UN=HOD?String(sessionStorage.cmmsUnit||"").replace(/ HOD$/,"")+" "+(SECN[SEC]||SEC):(sessionStorage.cmmsUnit||"Coal Washery Electrical");if(HOD&&window.HODBAR)HODBAR.mount(SEC);$("#unitH").textContent=UN+" maintenance management";document.title=UN+" Maintenance Management Portal";
 const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opDay=()=>{const d=new Date(Date.now()-216e5);return Date.UTC(d.getFullYear(),d.getMonth(),d.getDate())/864e5};
 let M,TD=opDay(),route=(location.hash||"#dashboard").slice(1),cl={},ms={},RG={days:7,cl:{},ms:{},done:false},rf="Pending",pastOrder=null,cur="",fromClosing=false,items=[],sub="closure",hist=null,hd=L.iso(TD),dirty=false;

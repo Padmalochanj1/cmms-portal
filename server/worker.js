@@ -1,3 +1,5 @@
+// Version 4.8, 27.11.2026
+// E&I renamed to Electrical (display names only; section id ei, folders and secrets unchanged)
 // Version 4.7, 27.11.2026
 // Coal Washery Operation (DPR): unit coal-washery:ops now has the roles admin, entry, mgmt and hod; data folder coal-washery-ops/ (settings.json, data/YYYY-MM.json); same actions as Coke Oven (dpr_load, dpr_save, dpr_delete, dpr_settings_save)
 // Version 4.6, 27.11.2026
@@ -5,7 +7,7 @@
 // Version 4.2, 26.11.2026
 // HOD sign-in for each plant (units coal-washery:hod and coke-oven:hod, secrets USERS_COAL_WASHERY_HOD and USERS_COKE_OVEN_HOD): read-only (management) access to every section of the plant
 // Version 4.1, 24.11.2026
-// New section Mechanical for Coal Washery and Coke Oven: units coal-washery:mech and coke-oven:mech, own users, own data folders, same pages and logic as E&I.
+// New section Mechanical for Coal Washery and Coke Oven: units coal-washery:mech and coke-oven:mech, own users, own data folders, same pages and logic as Electrical.
 // A Mechanical section without master.json starts with an empty master, so people can sign in before the equipment data is uploaded.
 // Version 4.0.1, 24.11.2026
 // Fix: the shared clean() helper was removed with the old Operation code; saving a checklist failed with 'clean is not defined'
@@ -18,11 +20,11 @@
 // Version 3.3, 20.11.2026
 // Order type IO (Improvement Order) added to Create order
 // Version 3.2, 19.11.2026
-// New plant RMHS, section E&I (folder rmhs-ei/, users secret USERS_RMHS_EI)
+// New plant RMHS, section Electrical (folder rmhs-ei/, users secret USERS_RMHS_EI)
 // Version 3.1, 19.11.2026
 // Notification type Interruption; additional orders carry a type (PM, CM, IM, OM) that is also the start of the order number
 // MTTR / MTBF: reliability_range returns Breakdown notifications and corrective orders (Attention actions, Additional orders) with their repair times
-// E&I user profiles (name, employee code, department, function) in profiles.json, edited by the administrator
+// Electrical user profiles (name, employee code, department, function) in profiles.json, edited by the administrator
 // Deferred orders are rescheduled to a new date; additional orders; Attention creates a corrective order (all stored in extras/YYYY-MM.json)
 // Management users can read the Admin history; new Compliance range action (admin and management)
 // Start and End time given in order closing
@@ -73,7 +75,7 @@ async function changePassword(env, b, me) {
   await setPassword(env, me.user, () => makeEntry(b.newPassword, { mc: 0, at: new Date().toISOString(), by: me.user }));
   return { ok: true, token: await issue(env, me.user, me.role, me.key, false) };
 }
-// ---------- User profiles (E&I sections only): profiles.json = { profiles: { username: { name, empCode, department, function } } } ----------
+// ---------- User profiles (Electrical sections only): profiles.json = { profiles: { username: { name, empCode, department, function } } } ----------
 const PROFILE_FIELDS = { name: 60, empCode: 20, department: 60, function: 60 };
 const profilesOf = async env => ((await read(env, 'profiles.json')).data || {}).profiles || {};
 async function profileGet(env, me) {
@@ -108,9 +110,9 @@ async function adminReset(env, b, me) {
 }
 // Plant + section units. Add a line here (and a USERS secret) to open a new section, e.g. Operation.
 const UNITS = {
-  'coal-washery:ei': { name: 'Coal Washery E&I', folder: 'coal-washery-ei/', folderVar: 'CW_FOLDER', users: 'USERS', roles: ['admin', 'user', 'mgmt'] },   // CW_FOLDER = root keeps the data at the repo top level
-  'coke-oven:ei': { name: 'Coke Oven E&I', folder: 'coke-oven-ei/', users: 'USERS_COKE_OVEN_EI', roles: ['admin', 'user', 'mgmt'] },
-  'rmhs:ei': { name: 'RMHS E&I', folder: 'rmhs-ei/', users: 'USERS_RMHS_EI', roles: ['admin', 'user', 'mgmt'] },
+  'coal-washery:ei': { name: 'Coal Washery Electrical', folder: 'coal-washery-ei/', folderVar: 'CW_FOLDER', users: 'USERS', roles: ['admin', 'user', 'mgmt'] },   // CW_FOLDER = root keeps the data at the repo top level
+  'coke-oven:ei': { name: 'Coke Oven Electrical', folder: 'coke-oven-ei/', users: 'USERS_COKE_OVEN_EI', roles: ['admin', 'user', 'mgmt'] },
+  'rmhs:ei': { name: 'RMHS Electrical', folder: 'rmhs-ei/', users: 'USERS_RMHS_EI', roles: ['admin', 'user', 'mgmt'] },
   'coal-washery:mech': { name: 'Coal Washery Mechanical', folder: 'coal-washery-mech/', users: 'USERS_COAL_WASHERY_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:mech': { name: 'Coke Oven Mechanical', folder: 'coke-oven-mech/', users: 'USERS_COKE_OVEN_MECH', blank: true, roles: ['admin', 'user', 'mgmt'] },
   'coke-oven:ops': { name: 'Coke Oven Operation', folder: 'coke-oven-dpr/', users: 'USERS_COKE_OVEN_OPS', type: 'ops', roles: ['admin', 'entry', 'mgmt', 'hod'], hodSections: ['ei', 'mech', 'ops'] },   // roles: admin = Administrator, entry = Data Entry, mgmt = Management, hod = HOD (view only, every section of the plant)
@@ -442,7 +444,7 @@ async function handle(env, b, req, ctx) {
   }
   if (b.action === 'admin_users') return adminUsers(env, me);
   if (b.action === 'admin_reset_password') return adminReset(env, b, me);
-  // Profiles are shared across E&I, Mechanical and Operation; each section stores its own profiles.json.
+  // Profiles are shared across Electrical, Mechanical and Operation; each section stores its own profiles.json.
   if (b.action === 'profile_get') return profileGet(env, me);
   if (b.action === 'profile_save') return profileSave(env, b, me);
   if (me.unit.type === 'ops') return dprHandle(env, b, me);      // every file for this plant and section lives under its own folder

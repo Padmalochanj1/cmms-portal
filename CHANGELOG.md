@@ -2,6 +2,11 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 27 Nov 2026 (3)
+**E&I renamed to Electrical** (Worker 4.8, new website files)
+- The section is now called "Electrical" everywhere it is shown: sign-in section list, page headings and titles, the HOD overview, and the unit names the Worker reports (Coal Washery Electrical, Coke Oven Electrical, RMHS Electrical). Internal names (section id `ei`, data folders `*-ei/`, secrets `USERS_*_EI`) are unchanged, so no data or secret has to be moved.
+- Worker: login-log entries written from now on use the new unit names. Older log lines keep "E&I".
+
 ## 27 Nov 2026 (2)
 **Coal Washery Operation: Daily Production Report and dashboard** (Worker 4.7, new website files)
 - Coal Washery now has the same Operation section as Coke Oven: Dashboard, Daily entry, Reports and Settings, built from `Coal_Washery_DPR_-NOVEMBER-2026.xlsx` (new files `pages/cw-ops.html`, `js/cw-schema.js`, `js/cw-dpr.js`, `js/cw-xlsx.js`). Roles: Administrator, Data Entry, Management and HOD.

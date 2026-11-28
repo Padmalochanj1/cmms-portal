@@ -4,11 +4,11 @@ Static website for GitHub Pages. Data is NOT stored here: it lives in the privat
 
 ```
 index.html            Landing page and sign-in (must stay at the top level)
-pages/app.html        E&I screens: Dashboard, Order closing, Closure report, Checklist, Tomorrow, Notifications, Admin
+pages/app.html        Electrical screens: Dashboard, Order closing, Closure report, Checklist, Tomorrow, Notifications, Admin
 pages/ops.html        Operation screens (Coke Oven): Management dashboard, Data entry, Records, Reports, Settings
-css/                  style.css (E&I screens), ops.css (Operation screens), landing.css (landing page)
+css/                  style.css (Electrical screens), ops.css (Operation screens), landing.css (landing page)
 js/                   config.js (server address), plants.js (plants and sections), landing.js,
-                      app.js + logic.js (E&I screens), ops.js + ops-logic.js (Operation screens)
+                      app.js + logic.js (Electrical screens), ops.js + ops-logic.js (Operation screens)
 server/worker.js      Cloudflare Worker code (for reference; it is deployed in Cloudflare, not here)
 ```
 
@@ -18,9 +18,9 @@ server/worker.js      Cloudflare Worker code (for reference; it is deployed in C
 
 ## Common changes
 - Add a plant or section: edit `js/plants.js`, then add it to `UNITS` in `server/worker.js` and paste that into the Worker.
-- Users of each plant and section are separate Cloudflare secrets: USERS (Coal Washery E&I), USERS_COKE_OVEN_EI, USERS_COKE_OVEN_OPS, USERS_RMHS_EI. Each is JSON like {"name":["password","admin|user|mgmt"]}.
+- Users of each plant and section are separate Cloudflare secrets: USERS (Coal Washery Electrical), USERS_COKE_OVEN_EI, USERS_COKE_OVEN_OPS, USERS_RMHS_EI. Each is JSON like {"name":["password","admin|user|mgmt"]}.
 - Server settings (GH_TOKEN, GH_REPO, SECRET, USERS, USERS_COKE_OVEN_EI, USERS_RMHS_EI) are in Cloudflare, never in this repo.
 - Do not put `master.json` or any records in this repo. This repo is public.
 
-## Start and end time (E&I)
+## Start and end time (Electrical)
 Every maintenance order has a Start time and End time on Order closing and Closure report. Both are required to Close an order (optional when deferring). They are saved with the closure record and shown in the Admin closure history with the duration. A time typed but not yet saved is kept in the browser on the same computer.
