@@ -341,7 +341,7 @@ A.compliance=()=>{const tabs=[["weekly","Weekly"],["monthly","Monthly"],["yearly
 
 
 /* RELIABILITY: MTTR and MTBF from Breakdown notifications and corrective orders */
-let rel={view:"overview",area:"",tab:"monthly",month:L.iso(TD).slice(0,7),year:+L.iso(TD).slice(0,4),hpd:24,src:{ntf:true,att:false,add:false}},RC={},RD={key:"",parts:{},err:"",done:false},relRun=0;
+let rel={view:"overview",area:"",tarea:"",onlyRep:false,tab:"monthly",month:L.iso(TD).slice(0,7),year:+L.iso(TD).slice(0,4),hpd:24,src:{ntf:true,att:false,add:false}},RC={},RD={key:"",parts:{},err:"",done:false},relRun=0;
 const relKey=()=>rel.tab==="monthly"?"m"+rel.month:"y"+rel.year;
 const relMonths=()=>rel.tab==="monthly"?[rel.month]:[...Array(12)].map((_,i)=>rel.year+"-"+String(i+1).padStart(2,"0"));
 async function relFetch(a,b){const hi=Math.min(b,TD);if(a>hi)return{breakdowns:[],orders:[]};const from=L.iso(a),to=L.iso(hi),k=from+"|"+to,h=RC[k];if(h&&Date.now()-h.t<3e5)return h.d;const d=await call("reliability_range",{from,to});RC[k]={t:Date.now(),d};return d}
@@ -351,15 +351,65 @@ async function relLoad(){const key=relKey(),run=++relRun,ms=relMonths();RD={key,
  if(run===relRun){RD.done=true;if(route==="reliability")V.reliability()}}
 const RSRC={ntf:"Breakdown notification",att:"Attention action order",add:"Corrective (CM) order"};
 function relEvents(parts){const ev=[];let excl=0;Object.entries(parts).forEach(([m,p])=>{
- if(rel.src.ntf)(p.breakdowns||[]).forEach(x=>ev.push({m,eq:x.eq,name:x.name,area:x.area||"Not set",mins:x.mins}));
- (p.orders||[]).forEach(o=>{if(!rel.src[o.kind==="attention"?"att":"add"]||(o.kind==="additional"&&o.otype!=="CM"))return;if(o.state==="closed"&&o.mins!=null)ev.push({m,eq:o.eq,name:o.name,area:o.area||"Not set",mins:o.mins});else excl++})});return{ev,excl}}
+ if(rel.src.ntf)(p.breakdowns||[]).forEach(x=>ev.push({m,eq:x.eq,name:x.name,area:x.area||"Not set",mins:x.mins,date:x.date,no:x.no,src:RSRC.ntf}));
+ (p.orders||[]).forEach(o=>{if(!rel.src[o.kind==="attention"?"att":"add"]||(o.kind==="additional"&&o.otype!=="CM"))return;if(o.state==="closed"&&o.mins!=null)ev.push({m,eq:o.eq,name:o.name,area:o.area||"Not set",mins:o.mins,date:o.due,no:o.no,src:RSRC[o.kind==="attention"?"att":"add"]});else excl++})});return{ev,excl}}
 const relDays=m=>{const[a,b]=monthOf(m);return Math.max(0,Math.min(b,TD)-a+1)};
 function relStats(ev,days){const by={};ev.forEach(e=>{const r=by[e.eq]||(by[e.eq]={eq:e.eq,name:e.name,area:e.area,n:0,mins:0});r.n++;r.mins+=e.mins});
  const T=days*rel.hpd*60,rows=Object.values(by).map(r=>({...r,mttr:r.mins/r.n,mtbf:Math.max(0,T-r.mins)/r.n,av:T?Math.max(0,T-r.mins)/T*100:null})).sort((a,b)=>b.n-a.n||b.mins-a.mins);
  const N=rows.reduce((a,r)=>a+r.n,0),D=rows.reduce((a,r)=>a+r.mins,0),A=rows.length;
  return{rows,N,D,A,T,mttr:N?D/N:null,mtbf:N?Math.max(0,A*T-D)/N:null,av:A&&T?Math.max(0,A*T-D)/(A*T)*100:null}}
 const fh=(m,d=1)=>m==null?"—":(m/60).toFixed(d),fp=p=>p==null?"—":p.toFixed(1)+"%";
-const relRow=(l,st)=>`<tr><td>${l}</td><td>${st.N}</td><td>${fh(st.D,2)}</td><td>${fh(st.mttr,2)}</td><td>${fh(st.mtbf)}</td><td>${fp(st.av)}</td></tr>`;
+/* ANALYTICS: targets, trends, bad actors, work mix and CSV download */
+const dm=d=>String(d||"").slice(8)+"/"+String(d||"").slice(5,7),badc=c=>`<span style="color:#d9473f;font-weight:700">${c}</span>`;
+function tgs(){const a=(M.settings&&M.settings.analytics)||{};return{mttr:+a.mttr||0,mtbf:+a.mtbf||0,av:+a.av||0,rep:Math.max(2,Math.round(+a.rep)||3)}}
+const tc=x=>{const t=tgs(),f=(s,b)=>b?badc(s):s;return`${f(fh(x.mttr,2),t.mttr&&x.mttr!=null&&x.mttr/60>t.mttr)}</td><td>${f(fh(x.mtbf),t.mtbf&&x.mtbf!=null&&x.mtbf/60<t.mtbf)}</td><td>${f(fp(x.av),t.av&&x.av!=null&&x.av<t.av)}`};
+function lineSvg(v,labels,o){const W=560,H=190,pl=44,pr=10,pt=12,pb=26,t=o.target||0,fin=v.filter(x=>x!=null&&isFinite(x)),hi0=Math.max(1e-9,...fin,t)*1.15,lo=o.zoom?Math.max(0,Math.floor(Math.min(...fin,t||100)-1)):0,hi=o.zoom?100:hi0,X=i=>pl+(W-pl-pr)*(labels.length>1?i/(labels.length-1):.5),Y=x=>pt+(H-pt-pb)*(1-(x-lo)/(hi-lo)),bd=x=>t&&x!=null&&(o.dir==="min"?x<t:x>t);
+ let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img">`;
+ [0,.5,1].forEach(f=>{const v0=lo+(hi-lo)*f,y=Y(v0);s+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${pl-6}" y="${y+4}" font-size="11" text-anchor="end" fill="var(--mut)">${v0.toFixed(o.dec)}</text>`});
+ labels.forEach((l,i)=>{s+=`<text x="${X(i)}" y="${H-8}" font-size="11" text-anchor="middle" fill="var(--mut)">${l}</text>`});
+ if(t)s+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(t)}" y2="${Y(t)}" stroke="${COL.red}" stroke-dasharray="5 4"/><text x="${W-pr}" y="${Y(t)-4}" font-size="10" text-anchor="end" fill="${COL.red}">target ${t}</text>`;
+ let d="",pen=false;v.forEach((x,i)=>{if(x==null||!isFinite(x)){pen=false;return}d+=(pen?"L":"M")+X(i).toFixed(1)+" "+Y(x).toFixed(1)+" ";pen=true});
+ s+=`<path d="${d}" fill="none" stroke="${o.color}" stroke-width="2"/>`;
+ v.forEach((x,i)=>{if(x==null||!isFinite(x))return;s+=`<circle cx="${X(i).toFixed(1)}" cy="${Y(x).toFixed(1)}" r="4" fill="${bd(x)?COL.red:o.color}"><title>${labels[i]}: ${x.toFixed(o.dec)}${o.unit||""}</title></circle>`});
+ return s+`</svg>`}
+function trendView(ev){if(rel.tab!=="yearly")return`<p class="hint">Trends show the twelve months of a year. Choose <b>Yearly</b> above.</p>`;
+ const t=tgs(),areas=[...new Set(ev.map(e=>e.area))].sort(),sel=areas.includes(rel.tarea)?rel.tarea:"",e2=sel?ev.filter(e=>e.area===sel):ev,
+  ms=[...Array(12)].map((_,i)=>rel.year+"-"+String(i+1).padStart(2,"0")),S=ms.map(m=>RD.parts[m]&&relDays(m)?relStats(e2.filter(e=>e.m===m),relDays(m)):null),
+  val=f=>S.map(s=>s&&s.N?f(s):null),adm=R==="admin",inp=(id,l,v,st)=>`<label>${l} <input type="number" id="${id}" min="0" step="${st}" value="${v||""}" style="width:90px"${adm?"":" disabled"}></label>`,
+  card=(h,svg)=>`<div><h4>${h}</h4>${svg}</div>`;
+ return`<div class="bar noprint"><label>Area <select id="rta"><option value="">All areas</option>${areas.map(a=>`<option${a===sel?" selected":""}>${esc(a)}</option>`).join("")}</select></label></div>
+ <div class="bar noprint">${inp("tg1","MTTR target, max (h)",t.mttr,"0.1")}${inp("tg2","MTBF target, min (h)",t.mtbf,"1")}${inp("tg3","Availability target, min (%)",t.av,"0.1")}${inp("tg4","Repeat failure: failures in 30 days",t.rep,"1")}${adm?`<button class="ghost" data-rtsave>Save targets</button>`:`<span class="hint">Targets are set by the administrator.</span>`}</div>
+ <div class="two" style="grid-template-columns:repeat(auto-fit,minmax(440px,1fr))">${card("MTTR (h)"+(sel?", "+esc(sel):""),lineSvg(val(s=>s.mttr/60),MON,{color:COL.blue,target:t.mttr,dir:"max",dec:2,unit:" h"}))}${card("MTBF (h)",lineSvg(val(s=>s.mtbf/60),MON,{color:COL.green,target:t.mtbf,dir:"min",dec:0,unit:" h"}))}
+ ${card("Availability (%)",lineSvg(val(s=>s.av),MON,{color:COL.teal,target:t.av,dir:"min",dec:1,unit:" %",zoom:true}))}${card("Failures",lineSvg(S.map(s=>s?s.N:null),MON,{color:COL.red,dec:0}))}</div>
+ <p class="hint">Points in red miss the target. A month without failures has no MTTR or MTBF and is left out of the line. Only the administrator can change the targets; they are kept in the portal data and shown in red in every table of this page.</p>`}
+function actorsView(ev,st){const t=tgs(),by={};ev.forEach(e=>{(by[e.eq]=by[e.eq]||[]).push(e.date||"")});
+ const rep=eq=>{const d=(by[eq]||[]).filter(Boolean).sort();let best=0,at="";for(let i=0;i<d.length;i++){let c=0;for(let j=i;j<d.length&&(Date.parse(d[j])-Date.parse(d[i]))/864e5<=29;j++)c++;if(c>best){best=c;at=d[i]}}return{best,at}};
+ const R2=st.rows.map(r=>({...r,rp:rep(r.eq)})).sort((a,b)=>b.mins-a.mins||b.n-a.n);if(!R2.length)return`<p class="empty">No failures in this period.</p>`;
+ const nrep=R2.filter(r=>r.rp.best>=t.rep).length,list=rel.onlyRep?R2.filter(r=>r.rp.best>=t.rep):R2,lab=r=>r.name||r.eq;
+ return`<div class="kpis"><div class="kpi" style="--c:${COL.red}"><b>${nrep}</b><span>Equipment with ${t.rep}+ failures in 30 days</span></div></div>
+ <div class="two"><div><h4>Top 10 by downtime (h)</h4>${abars(R2.slice(0,10).map(r=>[lab(r),r.mins]),n=>fh(n,1))}</div><div><h4>Top 10 by failures</h4>${abars([...R2].sort((a,b)=>b.n-a.n||b.mins-a.mins).slice(0,10).map(r=>[lab(r),r.n]),n=>n)}</div></div>
+ <div class="bar noprint"><label class="chk"><input type="checkbox" id="ronly"${rel.onlyRep?" checked":""}> Show only repeat failures</label></div>`+
+ tbl(["#","Equipment","Area","Failures","Downtime (h)","MTTR (h)","MTBF (h)","Repeat failure"],list.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${r.rp.best>=t.rep?`${badc(r.rp.best+" in 30 days")} <small>from ${dm(r.rp.at)}</small>`:"—"}</td></tr>`))+
+ `<p class="hint">Ranked by downtime. Repeat failure: the equipment failed ${t.rep} or more times within any 30 days of the period (the number is set under Trends). Uses the failure sources ticked above.</p>`}
+function mixView(){const rows={},g=a=>rows[a]||(rows[a]={a,bn:0,bh:0,at:0,cm:0,ot:0,open:0});
+ Object.values(RD.parts).forEach(p=>{(p.breakdowns||[]).forEach(x=>{const r=g(x.area||"Not set");r.bn++;r.bh+=Number(x.mins)||0});(p.orders||[]).forEach(o=>{const r=g(o.area||"Not set");if(o.kind==="attention")r.at++;else if(o.otype==="CM")r.cm++;else r.ot++;if(o.state!=="closed")r.open++})});
+ const L2=Object.values(rows).sort((a,b)=>(b.bn+b.at+b.cm+b.ot)-(a.bn+a.at+a.cm+a.ot)),sm=k=>L2.reduce((a,r)=>a+r[k],0);if(!L2.length)return`<p class="empty">No notifications or orders in this period.</p>`;
+ const kpx=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
+ return`<div class="kpis">${kpx(sm("bn"),"Breakdown notifications",COL.red)}${kpx(sm("at"),"Attention action orders",COL.amber)}${kpx(sm("cm"),"Corrective (CM) orders",COL.violet)}${kpx(sm("ot"),"Other additional orders",COL.slate)}${kpx(sm("open"),"Orders not closed",COL.blue)}</div>
+ <h3 style="margin-top:18px">Work raised by area</h3>`+tbl(["Area","Breakdown notifications","Breakdown time (h)","Attention action orders","Corrective (CM) orders","Other additional orders","Orders not closed"],L2.map(r=>`<tr><td>${esc(r.a)}</td><td>${r.bn}</td><td>${fh(r.bh,2)}</td><td>${r.at}</td><td>${r.cm}</td><td>${r.ot}</td><td>${r.open}</td></tr>`))+
+ `<p class="hint">Everything raised in the period, whatever is ticked under "Failures from". Scheduled preventive maintenance and its compliance are under Admin, Compliance.</p>`}
+function relCsv(){const ms=Object.keys(RD.parts).sort(),{ev}=relEvents(RD.parts),days=ms.reduce((a,m)=>a+relDays(m),0),st=relStats(ev,days),q=x=>`"${String(x==null?"":x).replace(/"/g,'""')}"`,row=a=>a.map(q).join(","),n2=(m,d)=>m==null?"":(m/60).toFixed(d);
+ const out=[row(["Analytics: MTTR and MTBF",rel.tab==="monthly"?rel.month:rel.year,"Operating hours per day",rel.hpd]),"",row(["By area"]),row(["Area","Equipment affected","Failures","Downtime (h)","MTTR (h)","MTBF (h)","Availability (%)"])];
+ [...new Set(ev.map(e=>e.area))].sort().forEach(a=>{const s=relStats(ev.filter(e=>e.area===a),days);out.push(row([a,s.A,s.N,n2(s.D,2),n2(s.mttr,2),n2(s.mtbf,1),s.av==null?"":s.av.toFixed(1)]))});
+ out.push("",row(["By equipment"]),row(["Equipment","Tag","Area","Failures","Downtime (h)","MTTR (h)","MTBF (h)","Availability (%)"]));
+ st.rows.forEach(r=>out.push(row([r.name,r.eq,r.area,r.n,n2(r.mins,2),n2(r.mttr,2),n2(r.mtbf,1),r.av==null?"":r.av.toFixed(1)])));
+ out.push("",row(["Events"]),row(["Date","Source","Number","Equipment","Tag","Area","Repair time (h)"]));
+ ev.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(e=>out.push(row([e.date,e.src,e.no,e.name,e.eq,e.area,n2(e.mins,2)])));
+ const blob=new Blob(["\ufeff"+out.join("\r\n")],{type:"text/csv;charset=utf-8"}),a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="Analytics_"+relKey()+".csv";document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
+async function relTargets(){const g=id=>+document.getElementById(id).value||0,a={mttr:g("tg1"),mtbf:g("tg2"),av:g("tg3"),rep:Math.round(g("tg4"))||3};
+ if(a.av>100||Object.values(a).some(x=>x<0))return toast("Check the targets: availability is at most 100 and no value can be negative.",1);
+ try{M.settings=M.settings||{};M.settings.analytics=a;await call("master",{master:M});toast("Targets saved.");V.reliability()}catch(x){toast(x.message,1)}}
+const relRow=(l,st)=>`<tr><td>${l}</td><td>${st.N}</td><td>${fh(st.D,2)}</td><td>${tc(st)}</td></tr>`;
 /* ANALYTICS, area point of view: every figure of the overview, grouped by area */
 const abars=(l,f)=>{const m=Math.max(1e-9,...l.map(x=>x[1]));return l.map(([a,n])=>`<div class="bar2"><span title="${esc(a)}">${esc(a)}</span><i style="width:${Math.max(1,n/m*100)}%"></i><em style="min-width:46px">${f(n)}</em></div>`).join("")};
 function areaView(ev,days,st){
@@ -368,13 +418,13 @@ function areaView(ev,days,st){
  const sel=ar.includes(rel.area)?rel.area:"",top=(k,asc)=>S.map(r=>[r.a,r[k]||0]).sort((x,y)=>asc?x[1]-y[1]:y[1]-x[1]),share=r=>st.D?(r.D/st.D*100).toFixed(1)+"%":"—",kpx=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
  let h=`<h3 style="margin-top:18px">Area-wise comparison</h3><div class="two"><div><h4>Failures</h4>${abars(top("N"),n=>n)}</div><div><h4>Downtime (h)</h4>${abars(top("D"),n=>fh(n,1))}</div>
   <div><h4>MTTR (h), longest repair first</h4>${abars(top("mttr"),n=>fh(n,2))}</div><div><h4>MTBF (h), shortest first</h4>${abars(top("mtbf",true),n=>fh(n,0))}</div></div>`;
- h+=`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area","Equipment affected","Failures","Downtime (h)","Share of downtime","MTTR (h)","MTBF (h)","Availability"],S.map(r=>`<tr><td>${esc(r.a)}</td><td>${r.A}</td><td>${r.N}</td><td>${fh(r.D,2)}</td><td>${share(r)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`));
+ h+=`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area","Equipment affected","Failures","Downtime (h)","Share of downtime","MTTR (h)","MTBF (h)","Availability"],S.map(r=>`<tr><td>${esc(r.a)}</td><td>${r.A}</td><td>${r.N}</td><td>${fh(r.D,2)}</td><td>${share(r)}</td><td>${tc(r)}</td></tr>`));
  h+=`<h3 style="margin-top:22px">Area detail</h3><div class="bar noprint"><label>Area <select id="rar"><option value="">Choose an area</option>${S.map(r=>`<option${r.a===sel?" selected":""}>${esc(r.a)}</option>`).join("")}</select></label></div>`;
  const r=S.find(x=>x.a===sel);
  if(!r)return h+`<p class="hint">Choose an area to see its equipment${rel.tab==="yearly"?" and its month by month figures":""}.</p>`;
  h+=`<div class="kpis">${kpx(r.N,"Failures",COL.red)}${kpx(r.A,"Equipment affected",COL.amber)}${kpx(fh(r.D,2),"Downtime (h)",COL.violet)}${kpx(fh(r.mttr,2),"MTTR (h)",COL.blue)}${kpx(fh(r.mtbf),"MTBF (h)",COL.green)}${kpx(fp(r.av),"Availability",COL.green)}</div>`;
  if(rel.tab==="yearly")h+=`<h4>${esc(sel)}: month by month</h4>`+tbl(["Month",...H],[...Array(12)].map((_,i)=>{const m=rel.year+"-"+String(i+1).padStart(2,"0"),d=relDays(m);return RD.parts[m]?relRow(MON[i],relStats(ev.filter(e=>e.area===sel&&e.m===m),d)):`<tr><td>${MON[i]}</td><td colspan="5" class="empty">${RD.err?"":d?"Loading...":"—"}</td></tr>`}));
- h+=`<h4>${esc(sel)}: equipment</h4>`+tbl(["Equipment",...H],r.rows.map(q=>`<tr><td>${esc(q.name)}<small>${esc(q.eq)}</small></td><td>${q.n}</td><td>${fh(q.mins,2)}</td><td>${fh(q.mttr,2)}</td><td>${fh(q.mtbf)}</td><td>${fp(q.av)}</td></tr>`));
+ h+=`<h4>${esc(sel)}: equipment</h4>`+tbl(["Equipment",...H],r.rows.map(q=>`<tr><td>${esc(q.name)}<small>${esc(q.eq)}</small></td><td>${q.n}</td><td>${fh(q.mins,2)}</td><td>${tc(q)}</td></tr>`));
  return h}
 function relBody(){const ms=Object.keys(RD.parts).sort(),{ev,excl}=relEvents(RD.parts),days=ms.reduce((a,m)=>a+relDays(m),0),st=relStats(ev,days),kp=(v,l,c)=>`<div class="kpi" style="--c:${c}"><b>${v}</b><span>${l}</span></div>`;
  const title=rel.tab==="monthly"?`Analytics: MTTR and MTBF, ${MON[+rel.month.slice(5)-1]} ${rel.month.slice(0,4)}`:`Analytics: MTTR and MTBF, January to December ${rel.year}`;
@@ -382,19 +432,19 @@ function relBody(){const ms=Object.keys(RD.parts).sort(),{ev,excl}=relEvents(RD.
  let h=PH(title)+`<div class="kpis">${kp(st.N,"Failures",COL.red)}${kp(st.A,"Equipment affected",COL.amber)}${kp(fh(st.D,2),"Downtime (h)",COL.violet)}${kp(fh(st.mttr,2),"MTTR (h)",COL.blue)}${kp(fh(st.mtbf),"MTBF (h)",COL.green)}${kp(fp(st.av),"Availability",COL.green)}</div>`;
  if(rel.tab==="yearly")h+=`<h3 style="margin-top:18px">Month by month</h3>`+tbl(["Month",...H],[...Array(12)].map((_,i)=>{const m=rel.year+"-"+String(i+1).padStart(2,"0"),d=relDays(m);return RD.parts[m]?relRow(MON[i],relStats(ev.filter(e=>e.m===m),d)):`<tr><td>${MON[i]}</td><td colspan="5" class="empty">${RD.err?"":d?"Loading...":"—"}</td></tr>`}));
  const ar=[...new Set(ev.map(e=>e.area))].sort();
- h+=(rel.view==="area"?areaView(ev,days,st):`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area",...H],ar.map(a=>relRow(esc(a),relStats(ev.filter(e=>e.area===a),days))))+
- `<h3 style="margin-top:18px">By equipment</h3>`+tbl(["Equipment","Area",...H],st.rows.map(r=>`<tr><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${fh(r.mttr,2)}</td><td>${fh(r.mtbf)}</td><td>${fp(r.av)}</td></tr>`)))+
+ h+=(rel.view==="area"?areaView(ev,days,st):rel.view==="trend"?trendView(ev):rel.view==="actors"?actorsView(ev,st):rel.view==="mix"?mixView():`<h3 style="margin-top:18px">By area</h3>`+tbl(["Area",...H],ar.map(a=>relRow(esc(a),relStats(ev.filter(e=>e.area===a),days))))+
+ `<h3 style="margin-top:18px">By equipment</h3>`+tbl(["Equipment","Area",...H],st.rows.map(r=>`<tr><td>${esc(r.name)}<small>${esc(r.eq)}</small></td><td>${esc(r.area)}</td><td>${r.n}</td><td>${fh(r.mins,2)}</td><td>${tc(r)}</td></tr>`)))+
  `<p class="hint">MTTR = total repair time / number of failures. MTBF = (operating time - repair time) / number of failures, where operating time is ${rel.hpd} hour(s) a day for every day of the period up to today, counted for each equipment that failed. Availability = (operating time - repair time) / operating time. Equipment with no failure in the period are not listed. Sources used: ${Object.keys(rel.src).filter(k=>rel.src[k]).map(k=>RSRC[k]).join(", ")||"none selected"}. Repair time of a notification is its breakdown time; repair time of an order is its closing End time minus Start time.${excl?` ${excl} selected order(s) were left out because they are not closed or have no start and end time.`:""}${rel.src.ntf&&(rel.src.att||rel.src.add)?" A breakdown that has both a notification and an order is counted twice.":""}</p>`;
  return h}
 V.reliability=()=>{const v=$("#view");if(RD.key!==relKey())relLoad();
  const pick=rel.tab==="monthly"?`<label>Month <input type="month" id="rmo" value="${rel.month}"></label>`:`<label>Year <select id="ryr">${[...new Set([...Array(6)].map((_,i)=>+L.iso(TD).slice(0,4)-i).filter(y=>y>=2026).concat(rel.year))].sort((a,b)=>b-a).map(y=>`<option${y===rel.year?" selected":""}>${y}</option>`).join("")}</select></label>`;
  const ck=(k)=>`<label class="chk"><input type="checkbox" data-rs="${k}"${rel.src[k]?" checked":""}> ${RSRC[k]}s</label>`;
- v.innerHTML=`<div class="subtabs noprint">${[["monthly","Monthly"],["yearly","Yearly"]].map(([k,n])=>`<button class="ghost${rel.tab===k?" on":""}" data-rt="${k}">${n}</button>`).join("")}<span style="width:24px"></span>${[["overview","By equipment"],["area","By area"]].map(([k,n])=>`<button class="ghost${rel.view===k?" on":""}" data-rv="${k}">${n}</button>`).join("")}</div>
- <div class="bar noprint"><button class="ghost" data-rn="-1">&lt; Previous</button>${pick}<button class="ghost" data-rn="1">Next &gt;</button><label>Operating hours per day <input type="number" id="rhpd" min="1" max="24" step="1" value="${rel.hpd}" style="width:80px"></label><button class="ghost" data-rreload>Reload</button><button class="ghost" data-print>Print</button></div>
+ v.innerHTML=`<div class="subtabs noprint">${[["monthly","Monthly"],["yearly","Yearly"]].map(([k,n])=>`<button class="ghost${rel.tab===k?" on":""}" data-rt="${k}">${n}</button>`).join("")}<span style="width:24px"></span>${[["overview","By equipment"],["area","By area"],["trend","Trends"],["actors","Bad actors"],["mix","Work mix"]].map(([k,n])=>`<button class="ghost${rel.view===k?" on":""}" data-rv="${k}">${n}</button>`).join("")}</div>
+ <div class="bar noprint"><button class="ghost" data-rn="-1">&lt; Previous</button>${pick}<button class="ghost" data-rn="1">Next &gt;</button><label>Operating hours per day <input type="number" id="rhpd" min="1" max="24" step="1" value="${rel.hpd}" style="width:80px"></label><button class="ghost" data-rreload>Reload</button><button class="ghost" data-rcsv>Download CSV</button><button class="ghost" data-print>Print</button></div>
  <div class="bar noprint"><span class="hint">Failures from:</span>${ck("ntf")}${ck("att")}${ck("add")}</div>`+
  (RD.err?`<p class="empty">Could not load: ${esc(RD.err)}</p>`:rel.tab==="monthly"&&!RD.done?`<p class="empty">Loading...</p>`:relBody());
- v.onclick=e=>{const d=e.target.dataset;if(d.rt){rel.tab=d.rt;V.reliability()}else if(d.rv){rel.view=d.rv;V.reliability()}else if(d.rn){const n=+d.rn;if(rel.tab==="monthly"){const y=+rel.month.slice(0,4),m=+rel.month.slice(5)-1+n;rel.month=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7)}else rel.year+=n;V.reliability()}else if(d.rreload!==undefined){RC={};RD.key="";V.reliability()}else if(d.print!==undefined)window.print()};
- v.onchange=e=>{const t=e.target;if(t.id==="rmo"&&t.value)rel.month=t.value;else if(t.id==="ryr")rel.year=+t.value;else if(t.id==="rar")rel.area=t.value;else if(t.id==="rhpd")rel.hpd=Math.min(24,Math.max(1,Math.round(+t.value)||24));else if(t.dataset.rs)rel.src[t.dataset.rs]=t.checked;else return;V.reliability()}};
+ v.onclick=e=>{const d=e.target.dataset;if(d.rt){rel.tab=d.rt;V.reliability()}else if(d.rv){rel.view=d.rv;if(d.rv==="trend")rel.tab="yearly";V.reliability()}else if(d.rn){const n=+d.rn;if(rel.tab==="monthly"){const y=+rel.month.slice(0,4),m=+rel.month.slice(5)-1+n;rel.month=new Date(Date.UTC(y,m,1)).toISOString().slice(0,7)}else rel.year+=n;V.reliability()}else if(d.rreload!==undefined){RC={};RD.key="";V.reliability()}else if(d.rcsv!==undefined)relCsv();else if(d.rtsave!==undefined)relTargets();else if(d.print!==undefined)window.print()};
+ v.onchange=e=>{const t=e.target;if(t.id==="rmo"&&t.value)rel.month=t.value;else if(t.id==="ryr")rel.year=+t.value;else if(t.id==="rar")rel.area=t.value;else if(t.id==="rta")rel.tarea=t.value;else if(t.id==="ronly")rel.onlyRep=t.checked;else if(t.id==="rhpd")rel.hpd=Math.min(24,Math.max(1,Math.round(+t.value)||24));else if(t.dataset.rs)rel.src[t.dataset.rs]=t.checked;else return;V.reliability()}};
 
 V.admin=()=>{if(R!=="admin"&&R!=="mgmt"){$("#view").textContent="Admin access only.";return}
  if(R!=="admin"&&sub==="sched")sub="closure";

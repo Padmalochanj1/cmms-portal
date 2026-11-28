@@ -14,15 +14,18 @@ async function call(a,b){if(!/^https:\/\//i.test(C.url||""))throw new Error("The
  if(j.error){if(/Session expired/.test(j.error)){sessionStorage.clear();location.replace("../index.html")}if(/change your password first/i.test(j.error))location.replace("../index.html");throw new Error(j.error)}return j}
 const href=s=>s.id==="ops"?"ops.html?sec=ops":"app.html?sec="+s.id,STYLE={ei:["#0866ff","#1877f2"],mech:["#0866ff","#1877f2"],ops:["#1b7f4b","#27ae60"]};
 // Electrical and Mechanical: orders of today, completion of the last 7 days, notifications of the month, equipment
+// MTTR and MTBF of the month so far, from the breakdown notifications (24 hours a day, as on the Analytics page)
+const mttrKpi=(rb,days)=>{const b=(rb&&rb.breakdowns)||[];if(!b.length)return[["MTTR this month","–","no breakdown"],["MTBF this month","–",""]];const by={};b.forEach(x=>{by[x.eq]=(by[x.eq]||0)+(Number(x.mins)||0)});const D=b.reduce((a,x)=>a+(Number(x.mins)||0),0),A=Object.keys(by).length,T=days*1440;
+ return[["MTTR this month",(D/b.length/60).toFixed(1)+" h",b.length+" breakdown(s)"],["MTBF this month",Math.round(Math.max(0,A*T-D)/b.length/60)+" h",A+" equipment affected"]]};
 async function maint(sec){const TD=opDay(),today=L.iso(TD),month=today.slice(0,7);
- const [d,r,n]=await Promise.all([call("load",{sec,date:today}),call("range",{sec,from:L.iso(TD-7),to:L.iso(TD-1)}),call("notif_list",{sec,month})]);const M=d.master,EX=d.extras||[];
+ const [d,r,n,rb]=await Promise.all([call("load",{sec,date:today}),call("range",{sec,from:L.iso(TD-7),to:L.iso(TD-1)}),call("notif_list",{sec,month}),call("reliability_range",{sec,from:month+"-01",to:today}).catch(()=>null)]);const M=d.master,EX=d.extras||[];
  const ordersOn=t=>L.orders(M,t).map(o=>o.no).concat(EX.filter(x=>x.due===L.iso(t)).map(x=>x.no));
  const cl=Object.fromEntries(d.closures.map(c=>[c.no,c.action])),ms=new Set(d.measurements.map(m=>m.no)),due=ordersOn(TD);
  const closed=due.filter(no=>cl[no]==="Closed").length,deferred=due.filter(no=>cl[no]==="Deferred").length,ready=due.filter(no=>!cl[no]&&ms.has(no)).length;
  const past=Object.fromEntries((r.closures||[]).map(c=>[c.no,c.action]));let pd=0,pc=0;for(let k=1;k<=7;k++)ordersOn(TD-k).forEach(no=>{pd++;if(past[no]==="Closed")pc++});
  const by=t=>(n.list||[]).filter(x=>x.type===t).length,eq=M.equipment.filter(e=>e.status!=="Inactive"&&e.type).length;
  return[["Orders due today",due.length,""],["Closed today",closed,due.length?Math.round(closed/due.length*100)+"%":""],["Open today",due.length-closed-deferred-ready,ready?ready+" ready to close":""],["Deferred today",deferred,""],
-  ["Completion, last 7 days",pd?Math.round(pc/pd*100)+"%":"–",pd?pc+" of "+pd+" orders":""],["Breakdowns this month",by("Breakdown"),""],["Interruptions this month",by("Interruption"),""],["Attention items this month",by("Attention"),""],["Active equipment",eq,""]]}
+  ["Completion, last 7 days",pd?Math.round(pc/pd*100)+"%":"–",pd?pc+" of "+pd+" orders":""],["Breakdowns this month",by("Breakdown"),""],["Interruptions this month",by("Interruption"),""],["Attention items this month",by("Attention"),""],["Active equipment",eq,""]].concat(mttrKpi(rb,+today.slice(8)))}
 // Operation: month to date of the daily production report
 async function oper(sec){if(plant.id==="coal-washery")return operCW(sec);const m=L.iso(opDay()).slice(0,7),d=await call("dpr_load",{sec,to:m}),recs={};Object.keys(d.months).forEach(k=>Object.entries(d.months[k]).forEach(([dt,x])=>recs[dt]=x.v));
  const last=new Date(Date.UTC(+m.slice(0,4),+m.slice(5),0)).toISOString().slice(0,10),rows=D.build(recs,last,d.settings),mr=rows.filter(r=>r.date.startsWith(m)),has=mr.filter(r=>r.has);if(!has.length)return[["Production this month","no data yet",""]];

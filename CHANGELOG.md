@@ -2,6 +2,14 @@
 
 Worker = the Cloudflare file `worker.js`. Where a change needs a new Worker, the version is shown.
 
+## 28 Nov 2026 (3)
+**Analytics: targets, trends, bad actors, work mix, CSV** (new website files; the Worker is unchanged)
+- **Trends** (Yearly): MTTR, MTBF, availability and failures month by month, for all areas or one area, with a dashed target line. Points that miss the target are red. The administrator sets the targets (MTTR maximum, MTBF minimum, availability minimum) and the repeat failure rule; they are stored in the portal data (`master.json`, settings) and every table of the page shows a figure that misses its target in red.
+- **Bad actors:** top 10 equipment by downtime and by failures, a ranked list with MTTR and MTBF, and a **repeat failure** flag (default: 3 or more failures within 30 days), with a filter to show only those.
+- **Work mix:** breakdown notifications, attention action orders, corrective (CM) orders and other additional orders per area, and how many orders are not closed.
+- **Download CSV:** the period's area table, equipment table and the list of failures as a file for Excel. **Print** gives the printable page as before.
+- **HOD overview:** every maintenance card now also shows the MTTR and MTBF of the month so far.
+
 ## 28 Nov 2026 (2)
 **MTTR / MTBF page renamed Analytics, with an area view** (new website files; the Worker is unchanged)
 - The tab, the landing tile, the HOD overview link and the printed heading now say **Analytics**. The page address (`#reliability`) is unchanged, so saved links still work.
